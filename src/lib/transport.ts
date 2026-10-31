@@ -118,7 +118,7 @@ export function connectDemo(h: Handlers): Transport {
   return {
     name: "HVM-SmartCity (Demo)",
     async send(cmd) {
-      const [k, v = ""] = cmd.split(":");
+      const [k = "", v = ""] = cmd.split(":");
       if (k in s && (v === "0" || v === "1")) (s as any)[k] = v === "1";
       else if (k === "THR") thr = Number(v) || 0;
       else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT", "HT", "PM"] as const).forEach((x) => (s[x] = false));
@@ -130,7 +130,7 @@ export function connectDemo(h: Handlers): Transport {
           show: [true, true, true, true, true, true, true],
         };
         const arr = p[v];
-        if (arr) (["SL", "BL", "GR", "RD", "WT", "HT", "PM"] as const).forEach((x, i) => (s[x] = arr[i]));
+        if (arr) (["SL", "BL", "GR", "RD", "WT", "HT", "PM"] as const).forEach((x, i) => (s[x] = !!arr[i]));
       }
       applyAuto();
       setTimeout(() => h.onLine("OK:" + cmd), 60);

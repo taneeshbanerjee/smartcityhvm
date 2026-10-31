@@ -7,7 +7,7 @@ function isRefused(): boolean {
     return true;
   }
   const h = window.location.hostname.toLowerCase();
-  const label = h.split(".")[0];
+  const label = h.split(".")[0] ?? "";
   const previewDomains = [".lovable.app", ".gpt-eng.com", ".gptengineer.run"];
   if (previewDomains.some((d) => h.endsWith(d))) {
     if (/^(?:id-preview|preview)(?:-[a-z0-9]+)?--.+$/.test(label)) return true;
