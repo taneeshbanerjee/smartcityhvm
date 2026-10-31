@@ -1,0 +1,3 @@
+- [ ] Add an in-app ESP32 command reference.
+- [ ] Add live pairing diagnostics and recent transport errors.
+- [ ] Verify reference, diagnostics, and existing controls.
