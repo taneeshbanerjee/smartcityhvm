@@ -7,7 +7,8 @@ import {
   Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
-import { connectBle, connectDemo, isBleSupported, type Transport } from "@/lib/transport";
+import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
+import { TestingTools } from "@/components/testing-tools";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 
@@ -45,6 +46,8 @@ function Index() {
   const [logOpen, setLogOpen] = useState(false);
   const [showRunning, setShowRunning] = useState(false);
   const [bleOk, setBleOk] = useState(true);
+  const [diagnostics, setDiagnostics] = useState(initialDiagnostics);
+  const [transportErrors, setTransportErrors] = useState<TransportError[]>([]);
   const [voiceOk, setVoiceOk] = useState(false);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -83,11 +86,16 @@ function Index() {
 
   const handlers = {
     onLine,
+    onDiagnostics: setDiagnostics,
+    onError: (error: TransportError) => {
+      setTransportErrors((errors) => [error, ...errors].slice(0, 20));
+      log("info", `${error.stage}: ${error.name}: ${error.message}`);
+    },
     onDisconnect: (reconnecting: boolean) => {
       if (reconnecting) { setConn("connecting"); toast.warning("Connection lost — reconnecting…"); log("info", "Disconnected, retrying"); return; }
       stopShow(); setConn("disconnected"); tRef.current = null; setDemo(false); log("info", "Disconnected");
     },
-    onReconnected: () => { setConn("connected"); toast.success("Reconnected"); tRef.current?.send("GET").catch(() => {}); },
+    onReconnected: () => { setConn("connected"); toast.success("Reconnected"); tRef.current?.send("GET").catch(() => toast.error("Status request failed. Check Diagnostics.")); },
   };
 
   const send = useCallback(async (cmd: string) => {
@@ -104,7 +112,7 @@ function Index() {
       const t = await connectBle(showAll, handlers);
       tRef.current = t; setDevName(t.name); setConn("connected"); setDemo(false);
       toast.success(`Connected to ${t.name}`); log("info", "Connected to " + t.name);
-      await t.send("GET");
+      await t.send("GET").catch(() => toast.error("Status request failed. Check Diagnostics."));
     } catch (e: any) {
       setConn("disconnected");
       if (e?.name === "NotFoundError") toast.info("Pairing cancelled or no device found.");
@@ -229,6 +237,8 @@ function Index() {
             </p>
           )}
         </section>
+
+        <TestingTools supported={bleOk} connection={conn} name={devName} demo={demo} diagnostics={diagnostics} errors={transportErrors} />
 
         <Card title="Lighting" icon={<Lamp size={18} />}>
           <div className="grid grid-cols-2 gap-3">

@@ -6,10 +6,32 @@ export interface Transport {
   name: string;
 }
 
+export type Availability = "not checked" | "checking" | "available" | "unavailable" | "disconnected" | "simulated";
+export interface TransportDiagnostics {
+  stage: string;
+  service: Availability;
+  write: Availability;
+  notify: Availability;
+  notifications: Availability;
+}
+export const initialDiagnostics: TransportDiagnostics = {
+  stage: "Idle", service: "not checked", write: "not checked", notify: "not checked", notifications: "not checked",
+};
+export interface TransportError { time: string; stage: string; name: string; message: string }
+
 interface Handlers {
   onLine: (line: string) => void;
   onDisconnect: (reconnecting: boolean) => void;
   onReconnected: () => void;
+  onDiagnostics?: (diagnostics: TransportDiagnostics) => void;
+  onError?: (error: TransportError) => void;
+}
+
+function reportError(h: Handlers, stage: string, error: unknown) {
+  const detail = typeof error === "object" && error !== null ? error as { name?: unknown; message?: unknown } : undefined;
+  h.onError?.({ time: new Date().toLocaleTimeString(), stage,
+    name: typeof detail?.name === "string" ? detail.name : "TransportError",
+    message: typeof detail?.message === "string" ? detail.message : String(error) });
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -18,17 +40,32 @@ export function isBleSupported() {
 }
 
 export async function connectBle(showAll: boolean, h: Handlers): Promise<Transport> {
+  let diagnostics = { ...initialDiagnostics };
+  const update = (patch: Partial<TransportDiagnostics>) => {
+    diagnostics = { ...diagnostics, ...patch };
+    h.onDiagnostics?.(diagnostics);
+  };
   const bt = (navigator as any).bluetooth;
+  let device: any;
+  try {
+  update({ stage: "Checking Bluetooth" });
+  if (!bt) throw new Error("Web Bluetooth is not supported in this browser");
   if (bt.getAvailability && !(await bt.getAvailability())) {
     const e = new Error("Bluetooth is turned off or unavailable");
     e.name = "BluetoothOff";
     throw e;
   }
-  const device: any = await bt.requestDevice(
+  update({ stage: "Choosing device" });
+  device = await bt.requestDevice(
     showAll
       ? { acceptAllDevices: true, optionalServices: [NUS_SERVICE] }
       : { filters: [{ namePrefix: "HVM-SmartCity" }, { services: [NUS_SERVICE] }], optionalServices: [NUS_SERVICE] },
   );
+  } catch (error) {
+    reportError(h, diagnostics.stage, error);
+    update({ stage: "Pairing failed" });
+    throw error;
+  }
 
   let writeChar: any = null;
   let manual = false;
@@ -36,6 +73,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let queue: Promise<void> = Promise.resolve();
+  let notifyChar: any = null;
 
   const onNotify = (ev: any) => {
     buffer += decoder.decode(ev.target.value as DataView);
@@ -49,30 +87,66 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
   };
 
   const setup = async () => {
+    buffer = "";
+    notifyChar?.removeEventListener("characteristicvaluechanged", onNotify);
+    notifyChar = null;
+    update({ ...initialDiagnostics, stage: "Connecting GATT" });
     const server = await device.gatt.connect();
+    update({ stage: "Finding NUS service", service: "checking" });
     const svc = await server.getPrimaryService(NUS_SERVICE);
+    update({ stage: "Finding write characteristic", service: "available", write: "checking" });
     writeChar = await svc.getCharacteristic(NUS_WRITE);
+    update({ stage: "Finding notify characteristic", write: "available", notify: "checking" });
     const notify = await svc.getCharacteristic(NUS_NOTIFY);
+    update({ stage: "Starting notifications", notify: "available", notifications: "checking" });
     await notify.startNotifications();
     notify.addEventListener("characteristicvaluechanged", onNotify);
+    notifyChar = notify;
+    update({ stage: "Ready", notifications: "available" });
+  };
+
+  const setupFailed = (error: unknown) => {
+    reportError(h, diagnostics.stage, error);
+    const patch: Partial<TransportDiagnostics> = { stage: "Connection failed" };
+    for (const key of ["service", "write", "notify", "notifications"] as const) {
+      if (diagnostics[key] === "checking") patch[key] = "unavailable";
+    }
+    update(patch);
+    writeChar = null;
   };
 
   device.addEventListener("gattserverdisconnected", async () => {
     writeChar = null;
+    notifyChar?.removeEventListener("characteristicvaluechanged", onNotify);
+    notifyChar = null;
+    update({ stage: manual ? "Disconnected" : "Reconnecting", service: "disconnected", write: "disconnected", notify: "disconnected", notifications: "disconnected" });
     if (manual) return h.onDisconnect(false);
+    reportError(h, "Connection lost", new Error("Device disconnected unexpectedly; retrying up to 3 times"));
     h.onDisconnect(true);
     for (let a = 1; a <= 3; a++) {
       await new Promise((r) => setTimeout(r, 1000 * a));
+      if (manual) return;
       try {
         await setup();
         h.onReconnected();
         return;
-      } catch { /* retry */ }
+      } catch (error) { setupFailed(error); }
     }
+    manual = true;
+    device.gatt?.connected && device.gatt.disconnect();
+    update({ stage: "Reconnect failed" });
     h.onDisconnect(false);
   });
 
-  await setup();
+  try { await setup(); } catch (error) {
+    setupFailed(error);
+    const failedDiagnostics = { ...diagnostics };
+    manual = true;
+    device.gatt?.connected && device.gatt.disconnect();
+    // Keep the failed discovery result visible after cleanup.
+    update({ ...failedDiagnostics, stage: "Connection failed" });
+    throw error;
+  }
 
   return {
     name: device.name || "ESP32",
@@ -89,7 +163,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
         }
       });
       queue = job.catch(() => undefined);
-      return job;
+      return job.catch((error) => { reportError(h, "Sending " + cmd, error); throw error; });
     },
     disconnect() {
       manual = true;
@@ -100,6 +174,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
 
 /** Simulated ESP32 for demo mode. */
 export function connectDemo(h: Handlers): Transport {
+  h.onDiagnostics?.({ stage: "Demo active — no hardware checked", service: "simulated", write: "simulated", notify: "simulated", notifications: "simulated" });
   const s: CityState = { ...initialState, LDR: 2200, SOL: 4.6 };
   let thr = 1500;
   let t = 0;
@@ -138,6 +213,7 @@ export function connectDemo(h: Handlers): Transport {
     },
     disconnect() {
       clearInterval(timer);
+      h.onDiagnostics?.({ ...initialDiagnostics, stage: "Demo stopped" });
       h.onDisconnect(false);
     },
   };
