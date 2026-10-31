@@ -1,24 +1,372 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import {
+  Bluetooth, BluetoothOff, Building2, Droplets, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
+  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal,
+} from "lucide-react";
+import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
+import { connectBle, connectDemo, isBleSupported, type Transport } from "@/lib/transport";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "SmartCity Control — Smart City Control Center" },
+      { name: "description", content: `Control the ${ORG_NAME} ESP32 smart-city model over Bluetooth.` },
+      { property: "og:title", content: "SmartCity Control" },
+      { property: "og:description", content: `Control the ${ORG_NAME} smart-city model over Bluetooth.` },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
+type Conn = "disconnected" | "connecting" | "connected";
+interface LogItem { id: number; dir: "tx" | "rx" | "info"; text: string; time: string }
+
+const SHOW_STEPS = [
+  ["SL:1", "BL:0", "GR:1", "RD:0"], ["WT:1", "RD:1"], ["BL:1", "SL:0", "HT:1"],
+  ["PM:1", "GR:0"], ["SL:1", "RD:0", "WT:0"], ["BL:0", "GR:1", "HT:0", "PM:0", "RD:1"],
+];
+
 function Index() {
+  const [splash, setSplash] = useState(true);
+  const [dark, setDark] = useState(false);
+  const [conn, setConn] = useState<Conn>("disconnected");
+  const [devName, setDevName] = useState("");
+  const [demo, setDemo] = useState(false);
+  const [state, setState] = useState<CityState>(initialState);
+  const [thr, setThr] = useState(1500);
+  const [logs, setLogs] = useState<LogItem[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
+  const [showRunning, setShowRunning] = useState(false);
+  const [bleOk, setBleOk] = useState(true);
+  const [voiceOk, setVoiceOk] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const tRef = useRef<Transport | null>(null);
+  const showRef = useRef<number | null>(null);
+  const logId = useRef(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSplash(false), 1400);
+    setBleOk(isBleSupported());
+    setVoiceOk(!!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
+    const saved = localStorage.getItem("theme");
+    setDark(saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  const log = useCallback((dir: LogItem["dir"], text: string) => {
+    setLogs((l) => [{ id: ++logId.current, dir, text, time: new Date().toLocaleTimeString() }, ...l].slice(0, 80));
+  }, []);
+
+  const onLine = useCallback((line: string) => {
+    const p = parseStatus(line);
+    if (p) setState((s) => ({ ...s, ...p }));
+    else log("rx", line);
+  }, [log]);
+
+  const stopShow = useCallback(() => {
+    if (showRef.current) clearInterval(showRef.current);
+    showRef.current = null;
+    setShowRunning(false);
+  }, []);
+
+  const handlers = {
+    onLine,
+    onDisconnect: (reconnecting: boolean) => {
+      if (reconnecting) { setConn("connecting"); toast.warning("Connection lost — reconnecting…"); log("info", "Disconnected, retrying"); return; }
+      stopShow(); setConn("disconnected"); tRef.current = null; setDemo(false); log("info", "Disconnected");
+    },
+    onReconnected: () => { setConn("connected"); toast.success("Reconnected"); tRef.current?.send("GET").catch(() => {}); },
+  };
+
+  const send = useCallback(async (cmd: string) => {
+    const t = tRef.current;
+    if (!t) return;
+    log("tx", cmd);
+    try { await t.send(cmd); } catch (e: any) { toast.error("Send failed: " + (e?.message ?? e)); }
+  }, [log]);
+
+  const connect = async (showAll = false) => {
+    if (!bleOk) { toast.error("Web Bluetooth isn't supported in this browser. Try Chrome on Android, or use Demo mode."); return; }
+    setConn("connecting");
+    try {
+      const t = await connectBle(showAll, handlers);
+      tRef.current = t; setDevName(t.name); setConn("connected"); setDemo(false);
+      toast.success(`Connected to ${t.name}`); log("info", "Connected to " + t.name);
+      await t.send("GET");
+    } catch (e: any) {
+      setConn("disconnected");
+      if (e?.name === "NotFoundError") toast.info("Pairing cancelled or no device found.");
+      else if (e?.name === "BluetoothOff") toast.error("Bluetooth is off. Turn it on and try again.");
+      else if (e?.name === "NotAllowedError" || e?.name === "SecurityError") toast.error("Bluetooth permission denied.");
+      else toast.error("Couldn't connect: " + (e?.message ?? "unknown error"));
+    }
+  };
+
+  const startDemo = () => {
+    tRef.current?.disconnect();
+    const t = connectDemo(handlers);
+    tRef.current = t; setDemo(true); setDevName(t.name); setConn("connected");
+    toast.success("Demo mode started"); log("info", "Demo mode");
+  };
+
+  const disconnect = () => { stopShow(); tRef.current?.disconnect(); };
+
+  const startShow = () => {
+    stopShow(); setShowRunning(true); send("SCENE:show");
+    let i = 0;
+    showRef.current = window.setInterval(() => {
+      (SHOW_STEPS[i % SHOW_STEPS.length] ?? []).forEach((c) => send(c)); i++;
+    }, 1500);
+  };
+
+  const scene = (s: string) => { if (s === "show") return startShow(); stopShow(); send("SCENE:" + s); };
+  const allOff = () => { stopShow(); send("ALL:0"); };
+  const toggle = (k: SwitchKey | "AUTO") => send(`${k}:${state[k] ? 0 : 1}`);
+
+  const speak = (text: string) => {
+    if (!("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(text); u.lang = "en-IN";
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  };
+
+  const listen = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    if (!navigator.onLine) toast.warning("Voice recognition needs an internet connection.");
+    const r = new SR(); r.lang = "en-IN"; r.interimResults = false; r.maxAlternatives = 1;
+    r.onstart = () => setListening(true);
+    r.onend = () => setListening(false);
+    r.onerror = (e: any) => {
+      setListening(false);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") toast.error("Microphone permission denied. Allow mic access in browser settings.");
+      else if (e.error === "network") toast.error("Voice needs internet. Check your connection.");
+      else if (e.error === "no-speech") toast.info("Didn't hear anything — try again.");
+      else toast.error("Voice error: " + e.error);
+    };
+    r.onresult = (e: any) => {
+      const text: string = e.results[0][0].transcript;
+      setTranscript(text);
+      const m = parseVoice(text);
+      if (!m) { speak("Sorry, I didn't understand"); return; }
+      if (conn !== "connected") { speak("Please connect to the city first"); return; }
+      if (m.show) startShow(); else { stopShow(); m.cmds.forEach(send); }
+      speak(m.reply);
+    };
+    try { r.start(); } catch { /* already started */ }
+  };
+
+  const disabled = conn !== "connected";
+
+  if (splash) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-background">
+        <img src="/logo.png" alt={`${ORG_NAME} logo`} className="h-40 w-auto animate-splash" />
+        <div className="text-center animate-splash">
+          <p className="text-sm font-semibold text-muted-foreground">{ORG_NAME}</p>
+          <h1 className="font-display text-2xl font-bold text-primary">Smart City Control</h1>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="mx-auto min-h-screen max-w-3xl bg-background pb-28 font-sans text-foreground">
+      <header className="sticky top-0 z-20 border-b border-border bg-background/85 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt={`${ORG_NAME} logo`} className="h-11 w-auto" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-accent">{ORG_NAME}</p>
+            <h1 className="truncate font-display text-lg font-bold leading-tight">Smart City Control Center</h1>
+          </div>
+          <IconBtn label="Toggle theme" onClick={() => setDark((d) => !d)}>{dark ? <Sun size={20} /> : <Moon size={20} />}</IconBtn>
+          <IconBtn label="Activity log" onClick={() => setLogOpen(true)}><ListTree size={20} /></IconBtn>
+        </div>
+      </header>
+
+      <main className="space-y-4 p-4">
+        <section className="rounded-3xl bg-hero p-4 text-primary-foreground shadow-card">
+          <div className="flex items-center justify-between gap-2">
+            <Chip conn={conn} name={devName} />
+            {voiceOk && (
+              <button aria-label="Voice command" onClick={listen}
+                className={`grid h-12 w-12 place-items-center rounded-full bg-primary-foreground/15 transition active:scale-95 ${listening ? "animate-pulse ring-4 ring-accent" : ""}`}>
+                {listening ? <MicOff size={22} /> : <Mic size={22} />}
+              </button>
+            )}
+          </div>
+          {transcript && <p className="mt-3 rounded-xl bg-primary-foreground/10 px-3 py-2 text-sm">“{transcript}”</p>}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {conn === "connected" ? (
+              <button onClick={disconnect} className="col-span-2 h-12 rounded-2xl bg-primary-foreground/15 font-semibold active:scale-[.98]">
+                {demo ? "Exit demo" : "Disconnect"}
+              </button>
+            ) : (
+              <>
+                <button disabled={conn === "connecting" || !bleOk} onClick={() => connect(false)}
+                  className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-flame text-lg font-bold text-accent-foreground shadow-card disabled:opacity-60 active:scale-[.98]">
+                  {conn === "connecting" ? <Loader2 className="animate-spin" /> : <Bluetooth />} Connect
+                </button>
+                <button disabled={!bleOk || conn === "connecting"} onClick={() => connect(true)} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold disabled:opacity-50">Show all devices</button>
+                <button onClick={startDemo} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold">Demo mode</button>
+              </>
+            )}
+          </div>
+          {!bleOk && (
+            <p className="mt-3 rounded-xl bg-destructive/25 px-3 py-2 text-sm">
+              Web Bluetooth isn't available here (iPhone/Safari and Firefox don't support it). Use Chrome on Android or desktop — or try Demo mode.
+            </p>
+          )}
+        </section>
+
+        <Card title="Lighting" icon={<Lamp size={18} />}>
+          <div className="grid grid-cols-2 gap-3">
+            <Tile label="Street lights" icon={<Lamp />} on={state.SL} disabled={disabled} onClick={() => toggle("SL")} />
+            <Tile label="Building lights" icon={<Building2 />} on={state.BL} disabled={disabled} onClick={() => toggle("BL")} />
+            <Tile label="Green status" icon={<Signal />} on={state.GR} disabled={disabled} onClick={() => toggle("GR")} tone="success" />
+            <Tile label="Red beacons" icon={<Radio />} on={state.RD} disabled={disabled} onClick={() => toggle("RD")} tone="destructive" />
+          </div>
+        </Card>
+
+        <Card title="Power" icon={<Zap size={18} />}>
+          <div className="grid grid-cols-2 gap-3">
+            <Tile label="Wind turbine" icon={<Fan className={state.WT ? "animate-spin" : ""} />} on={state.WT} disabled={disabled} onClick={() => toggle("WT")} />
+            <Tile label="Water turbine" icon={<Waves />} on={state.HT} disabled={disabled} onClick={() => toggle("HT")} />
+            <Tile label="Water pump" icon={<Droplets />} on={state.PM} disabled={disabled} onClick={() => toggle("PM")} />
+            <div className="flex flex-col justify-between rounded-2xl bg-muted p-3">
+              <SunMedium className="text-accent" />
+              <div><p className="text-sm font-semibold">Solar</p><p className="text-xs text-muted-foreground">{state.SOL != null ? `${state.SOL.toFixed(2)} V` : "—"}</p></div>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Sensors" icon={<Gauge size={18} />}>
+          <div className="grid grid-cols-2 gap-3">
+            <Ring label={state.LDR == null ? "LDR" : state.LDR < thr ? "Night" : "Day"} value={state.LDR} max={4095} unit="" />
+            <Ring label="Solar" value={state.SOL} max={6} unit="V" digits={2} />
+          </div>
+        </Card>
+
+        <Card title="Scenes" icon={<Sparkles size={18} />}>
+          <div className="grid grid-cols-4 gap-2">
+            {([["day", Sun], ["night", Moon], ["eco", Leaf], ["show", Sparkles]] as const).map(([s, I]) => (
+              <button key={s} disabled={disabled} onClick={() => scene(s)}
+                className={`flex h-20 flex-col items-center justify-center gap-1 rounded-2xl text-sm font-semibold capitalize transition active:scale-95 disabled:opacity-40 ${s === "show" && showRunning ? "bg-flame text-accent-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                <I size={22} />{s}
+              </button>
+            ))}
+          </div>
+          {showRunning && (
+            <button onClick={stopShow} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-accent font-semibold text-accent">
+              <Square size={16} /> Stop show
+            </button>
+          )}
+        </Card>
+
+        <Card title="Auto Mode" icon={<Power size={18} />}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Lights follow the light sensor — runs on the ESP32 even if the phone disconnects.</p>
+            <Switch checked={state.AUTO} disabled={disabled} onCheckedChange={() => toggle("AUTO")} className="ml-3 scale-125" />
+          </div>
+          <div className="mt-4">
+            <div className="mb-2 flex justify-between text-sm"><span>Light threshold</span><span className="font-semibold tabular-nums">{thr}</span></div>
+            <Slider min={0} max={4095} step={5} value={[thr]} disabled={disabled}
+              onValueChange={(v) => setThr(v[0] ?? 0)} onValueCommit={(v) => send(`THR:${v[0] ?? 0}`)} />
+          </div>
+        </Card>
+
+        <button disabled={disabled} onClick={allOff}
+          className="flex h-16 w-full items-center justify-center gap-2 rounded-3xl bg-destructive text-xl font-bold text-destructive-foreground shadow-card transition active:scale-[.98] disabled:opacity-40">
+          <Power /> ALL OFF
+        </button>
+      </main>
+
+      <footer className="px-4 py-6 text-center text-sm text-muted-foreground">Project by {ORG_NAME}</footer>
+
+      {logOpen && (
+        <div className="fixed inset-0 z-30 flex items-end bg-foreground/40" onClick={() => setLogOpen(false)}>
+          <div className="mx-auto max-h-[75vh] w-full max-w-3xl overflow-hidden rounded-t-3xl bg-card animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <h2 className="font-display font-bold">Activity log</h2>
+              <IconBtn label="Close" onClick={() => setLogOpen(false)}><X size={20} /></IconBtn>
+            </div>
+            <ul className="max-h-[60vh] space-y-1 overflow-y-auto p-3 font-mono text-xs">
+              {logs.length === 0 && <li className="p-4 text-center text-muted-foreground">No activity yet</li>}
+              {logs.map((l) => (
+                <li key={l.id} className="flex gap-2 rounded-lg bg-muted px-2 py-1.5">
+                  <span className="text-muted-foreground">{l.time}</span>
+                  <span className={l.dir === "tx" ? "text-primary" : l.dir === "rx" ? "text-success" : "text-accent"}>{l.dir === "tx" ? "→" : l.dir === "rx" ? "←" : "•"}</span>
+                  <span className="break-all">{l.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return <button aria-label={label} onClick={onClick} className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-secondary-foreground active:scale-95">{children}</button>;
+}
+
+function Chip({ conn, name }: { conn: Conn; name: string }) {
+  const dot = conn === "connected" ? "bg-success" : conn === "connecting" ? "bg-accent animate-pulse" : "bg-destructive";
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-full bg-primary-foreground/15 px-3 py-2 text-sm font-semibold">
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
+      {conn === "disconnected" ? <BluetoothOff size={16} /> : <Bluetooth size={16} />}
+      <span className="truncate">{conn === "connected" ? `Connected · ${name}` : conn === "connecting" ? "Connecting…" : "Disconnected"}</span>
+    </div>
+  );
+}
+
+function Card({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+  return (
+    <section className="rounded-3xl border border-border bg-card p-4 shadow-card animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <h2 className="mb-3 flex items-center gap-2 font-display font-semibold"><span className="text-primary">{icon}</span>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Tile({ label, icon, on, disabled, onClick, tone = "primary" }: {
+  label: string; icon: ReactNode; on: boolean; disabled: boolean; onClick: () => void; tone?: "primary" | "success" | "destructive";
+}) {
+  const onCls = tone === "success" ? "bg-success text-primary-foreground" : tone === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground";
+  return (
+    <button disabled={disabled} onClick={onClick} aria-pressed={on}
+      className={`flex h-24 flex-col justify-between rounded-2xl p-3 text-left transition-all duration-300 active:scale-95 disabled:opacity-40 ${on ? onCls + " shadow-card" : "bg-muted text-foreground"}`}>
+      {icon}
+      <div><p className="text-sm font-semibold">{label}</p><p className="text-xs opacity-75">{on ? "ON" : "OFF"}</p></div>
+    </button>
+  );
+}
+
+function Ring({ label, value, max, unit, digits = 0 }: { label: string; value: number | null; max: number; unit: string; digits?: number }) {
+  const pct = value == null ? 0 : Math.min(1, Math.max(0, value / max));
+  const C = 2 * Math.PI * 42;
+  return (
+    <div className="flex flex-col items-center rounded-2xl bg-muted p-3">
+      <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
+        <circle cx="50" cy="50" r="42" fill="none" strokeWidth="10" className="stroke-border" />
+        <circle cx="50" cy="50" r="42" fill="none" strokeWidth="10" strokeLinecap="round" className="stroke-accent transition-all duration-700"
+          strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
+      </svg>
+      <p className="-mt-[74px] mb-10 font-display text-lg font-bold tabular-nums">{value == null ? "—" : value.toFixed(digits)}{unit && value != null ? unit : ""}</p>
+      <p className="text-sm font-semibold">{label}</p>
     </div>
   );
 }
