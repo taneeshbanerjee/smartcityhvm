@@ -28,9 +28,10 @@ interface Handlers {
 }
 
 function reportError(h: Handlers, stage: string, error: unknown) {
+  const detail = typeof error === "object" && error !== null ? error as { name?: unknown; message?: unknown } : undefined;
   h.onError?.({ time: new Date().toLocaleTimeString(), stage,
-    name: error instanceof Error ? error.name : "TransportError",
-    message: error instanceof Error ? error.message : String(error) });
+    name: typeof detail?.name === "string" ? detail.name : "TransportError",
+    message: typeof detail?.message === "string" ? detail.message : String(error) });
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

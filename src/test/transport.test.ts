@@ -11,7 +11,7 @@ function harness(failAt?: string) {
   const service = { getCharacteristic: vi.fn(async (uuid: string) => { if (uuid === failAt) throw new Error("Characteristic missing"); return characteristic; }) };
   const device = { name: "HVM-SmartCity", addEventListener: vi.fn(), gatt: { connected: true, connect: vi.fn(async () => ({ getPrimaryService: vi.fn(async (uuid: string) => { if (uuid === failAt) throw new Error("Service missing"); return service; }) })), disconnect: vi.fn() } };
   const bluetooth = { requestDevice: vi.fn(async () => device) };
-  vi.spyOn(navigator, "bluetooth", "get").mockReturnValue(bluetooth as unknown as Bluetooth);
+  vi.spyOn(navigator as Navigator & { bluetooth: unknown }, "bluetooth", "get").mockReturnValue(bluetooth);
   const handlers = { onLine: vi.fn(), onDisconnect: vi.fn(), onReconnected: vi.fn(), onDiagnostics: (d: TransportDiagnostics) => diagnostics.push(d), onError: (e: TransportError) => errors.push(e) };
   return { diagnostics, errors, handlers, characteristic, bluetooth, device };
 }
