@@ -127,7 +127,7 @@ function Index() {
     stopShow(); setShowRunning(true); send("SCENE:show");
     let i = 0;
     showRef.current = window.setInterval(() => {
-      SHOW_STEPS[i % SHOW_STEPS.length].forEach((c) => send(c)); i++;
+      (SHOW_STEPS[i % SHOW_STEPS.length] ?? []).forEach((c) => send(c)); i++;
     }, 1500);
   };
 
@@ -282,7 +282,7 @@ function Index() {
           <div className="mt-4">
             <div className="mb-2 flex justify-between text-sm"><span>Light threshold</span><span className="font-semibold tabular-nums">{thr}</span></div>
             <Slider min={0} max={4095} step={5} value={[thr]} disabled={disabled}
-              onValueChange={(v) => setThr(v[0])} onValueCommit={(v) => send(`THR:${v[0]}`)} />
+              onValueChange={(v) => setThr(v[0] ?? 0)} onValueCommit={(v) => send(`THR:${v[0] ?? 0}`)} />
           </div>
         </Card>
 
