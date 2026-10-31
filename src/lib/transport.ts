@@ -139,10 +139,11 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
 
   try { await setup(); } catch (error) {
     setupFailed(error);
+    const failedDiagnostics = { ...diagnostics };
     manual = true;
     device.gatt?.connected && device.gatt.disconnect();
     // Keep the failed discovery result visible after cleanup.
-    update({ ...diagnostics, stage: "Connection failed" });
+    update({ ...failedDiagnostics, stage: "Connection failed" });
     throw error;
   }
 
