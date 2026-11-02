@@ -67,6 +67,11 @@ function Index() {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
+  useEffect(() => () => {
+    if (showRef.current) clearInterval(showRef.current);
+    tRef.current?.disconnect();
+    window.speechSynthesis?.cancel();
+  }, []);
 
   const log = useCallback((dir: LogItem["dir"], text: string) => {
     setLogs((l) => [{ id: ++logId.current, dir, text, time: new Date().toLocaleTimeString() }, ...l].slice(0, 80));
@@ -92,6 +97,7 @@ function Index() {
       log("info", `${error.stage}: ${error.name}: ${error.message}`);
     },
     onDisconnect: (reconnecting: boolean) => {
+      stopShow();
       if (reconnecting) { setConn("connecting"); toast.warning("Connection lost — reconnecting…"); log("info", "Disconnected, retrying"); return; }
       stopShow(); setConn("disconnected"); tRef.current = null; setDemo(false); log("info", "Disconnected");
     },
@@ -227,7 +233,7 @@ function Index() {
                   {conn === "connecting" ? <Loader2 className="animate-spin" /> : <Bluetooth />} Connect
                 </button>
                 <button disabled={!bleOk || conn === "connecting"} onClick={() => connect(true)} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold disabled:opacity-50">Show all devices</button>
-                <button onClick={startDemo} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold">Demo mode</button>
+                 <button disabled={conn === "connecting"} onClick={startDemo} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold disabled:opacity-50">Demo mode</button>
               </>
             )}
           </div>

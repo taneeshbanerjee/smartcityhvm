@@ -1,3 +1,6 @@
 - [x] Add an in-app ESP32 command reference.
+- [x] Add a dismissible top install notice with browser-supported installation and manual fallback.
+- [x] Check controls, diagnostics, assets, and install behavior; fix connection cleanup and stale queued commands (13 tests and desktop/mobile checks passed).
+- [ ] Verify physical ESP32 pairing/reconnection, voice, and published offline cold start/install; blocked on real device testing and publication of these changes.
 - [x] Add live pairing diagnostics and recent transport errors.
 - [x] Verify reference, diagnostics, and existing controls with automated tests and desktop/mobile browser checks; physical ESP32 pairing remains unverified.

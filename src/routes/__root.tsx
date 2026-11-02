@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ORG_NAME } from "../lib/smartcity";
 import { Toaster } from "../components/ui/sonner";
 import { registerSW } from "../lib/sw-register";
+import { InstallNotice } from "../components/install-notice";
 
 function NotFoundComponent() {
   return (
@@ -126,6 +127,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <InstallNotice />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster position="top-center" richColors />

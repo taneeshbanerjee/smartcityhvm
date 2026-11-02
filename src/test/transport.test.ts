@@ -9,7 +9,7 @@ function harness(failAt?: string) {
   const errors: TransportError[] = [];
   const characteristic = { startNotifications: vi.fn(async () => {}), addEventListener: vi.fn(), removeEventListener: vi.fn(), writeValue: vi.fn(async () => {}) };
   const service = { getCharacteristic: vi.fn(async (uuid: string) => { if (uuid === failAt) throw new Error("Characteristic missing"); return characteristic; }) };
-  const device = { name: "HVM-SmartCity", addEventListener: vi.fn(), gatt: { connected: true, connect: vi.fn(async () => ({ getPrimaryService: vi.fn(async (uuid: string) => { if (uuid === failAt) throw new Error("Service missing"); return service; }) })), disconnect: vi.fn() } };
+  const device = { name: "HVM-SmartCity", addEventListener: vi.fn(), removeEventListener: vi.fn(), gatt: { connected: true, connect: vi.fn(async () => ({ getPrimaryService: vi.fn(async (uuid: string) => { if (uuid === failAt) throw new Error("Service missing"); return service; }) })), disconnect: vi.fn() } };
   const bluetooth = { requestDevice: vi.fn(async () => device) };
   vi.spyOn(navigator as Navigator & { bluetooth: unknown }, "bluetooth", "get").mockReturnValue(bluetooth);
   const handlers = { onLine: vi.fn(), onDisconnect: vi.fn(), onReconnected: vi.fn(), onDiagnostics: (d: TransportDiagnostics) => diagnostics.push(d), onError: (e: TransportError) => errors.push(e) };
@@ -20,6 +20,26 @@ function harness(failAt?: string) {
 Object.defineProperty(navigator, "bluetooth", { configurable: true, get: () => undefined });
 
 describe("Transport diagnostics", () => {
+  it("rejects queued writes after disconnect and removes the device listener", async () => {
+    const h = harness();
+    const transport = await connectBle(false, h.handlers);
+    const pending = transport.send("PM:1");
+    transport.disconnect();
+    await expect(pending).rejects.toThrow("Not connected");
+    expect(h.characteristic.writeValue).not.toHaveBeenCalled();
+    expect(h.device.removeEventListener).toHaveBeenCalledWith("gattserverdisconnected", expect.any(Function));
+    expect(h.handlers.onDisconnect).toHaveBeenCalledWith(false);
+  });
+  it("does not emit pending demo replies after disconnect", async () => {
+    vi.useFakeTimers();
+    const h = harness();
+    const demo = connectDemo(h.handlers);
+    await demo.send("SL:1");
+    demo.disconnect();
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(h.handlers.onLine).not.toHaveBeenCalled();
+    await expect(demo.send("SL:0")).rejects.toThrow("Not connected");
+  });
   it("reports discovered NUS service, both characteristics and enabled notifications", async () => {
     const h = harness();
     const transport = await connectBle(false, h.handlers);
