@@ -1,3 +1,5 @@
 - [x] Add an in-app ESP32 command reference.
+- [ ] Add a dismissible top install notice with browser-supported installation and manual fallback.
+- [ ] Check controls, diagnostics, assets, and install behavior; fix confirmed issues and record device-only limitations.
 - [x] Add live pairing diagnostics and recent transport errors.
 - [x] Verify reference, diagnostics, and existing controls with automated tests and desktop/mobile browser checks; physical ESP32 pairing remains unverified.
