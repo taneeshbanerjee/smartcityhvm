@@ -74,6 +74,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
   const encoder = new TextEncoder();
   let queue: Promise<void> = Promise.resolve();
   let notifyChar: any = null;
+  let generation = 0;
 
   const onNotify = (ev: any) => {
     buffer += decoder.decode(ev.target.value as DataView);
@@ -92,14 +93,19 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
     notifyChar = null;
     update({ ...initialDiagnostics, stage: "Connecting GATT" });
     const server = await device.gatt.connect();
+    if (manual) { device.gatt.disconnect(); throw new Error("Connection cancelled"); }
     update({ stage: "Finding NUS service", service: "checking" });
     const svc = await server.getPrimaryService(NUS_SERVICE);
+    if (manual) throw new Error("Connection cancelled");
     update({ stage: "Finding write characteristic", service: "available", write: "checking" });
     writeChar = await svc.getCharacteristic(NUS_WRITE);
+    if (manual) { writeChar = null; throw new Error("Connection cancelled"); }
     update({ stage: "Finding notify characteristic", write: "available", notify: "checking" });
     const notify = await svc.getCharacteristic(NUS_NOTIFY);
+    if (manual) throw new Error("Connection cancelled");
     update({ stage: "Starting notifications", notify: "available", notifications: "checking" });
     await notify.startNotifications();
+    if (manual) throw new Error("Connection cancelled");
     notify.addEventListener("characteristicvaluechanged", onNotify);
     notifyChar = notify;
     update({ stage: "Ready", notifications: "available" });
@@ -115,7 +121,8 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
     writeChar = null;
   };
 
-  device.addEventListener("gattserverdisconnected", async () => {
+  const onGattDisconnected = async () => {
+    generation++;
     writeChar = null;
     notifyChar?.removeEventListener("characteristicvaluechanged", onNotify);
     notifyChar = null;
@@ -130,18 +137,21 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
         await setup();
         h.onReconnected();
         return;
-      } catch (error) { setupFailed(error); }
+      } catch (error) { if (manual) return; setupFailed(error); }
     }
     manual = true;
+    device.removeEventListener("gattserverdisconnected", onGattDisconnected);
     device.gatt?.connected && device.gatt.disconnect();
     update({ stage: "Reconnect failed" });
     h.onDisconnect(false);
-  });
+  };
+  device.addEventListener("gattserverdisconnected", onGattDisconnected);
 
   try { await setup(); } catch (error) {
     setupFailed(error);
     const failedDiagnostics = { ...diagnostics };
     manual = true;
+    device.removeEventListener("gattserverdisconnected", onGattDisconnected);
     device.gatt?.connected && device.gatt.disconnect();
     // Keep the failed discovery result visible after cleanup.
     update({ ...failedDiagnostics, stage: "Connection failed" });
@@ -151,10 +161,12 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
   return {
     name: device.name || "ESP32",
     send(cmd) {
+      const sentGeneration = generation;
       const job = queue.then(async () => {
-        if (!writeChar) throw new Error("Not connected");
+        if (!writeChar || manual || sentGeneration !== generation) throw new Error("Not connected");
         const data = encoder.encode(cmd + "\n");
         for (let o = 0; o < data.length; o += 20) {
+          if (!writeChar || manual || sentGeneration !== generation) throw new Error("Connection changed during send");
           const chunk = data.slice(o, o + 20);
           if (writeChar.writeValueWithoutResponse) {
             try { await writeChar.writeValueWithoutResponse(chunk); continue; } catch { /* fallback */ }
@@ -167,7 +179,14 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
     },
     disconnect() {
       manual = true;
+      generation++;
+      writeChar = null;
+      device.removeEventListener("gattserverdisconnected", onGattDisconnected);
+      notifyChar?.removeEventListener("characteristicvaluechanged", onNotify);
+      notifyChar = null;
       device.gatt?.connected && device.gatt.disconnect();
+      update({ stage: "Disconnected", service: "disconnected", write: "disconnected", notify: "disconnected", notifications: "disconnected" });
+      h.onDisconnect(false);
     },
   };
 }
@@ -178,7 +197,8 @@ export function connectDemo(h: Handlers): Transport {
   const s: CityState = { ...initialState, LDR: 2200, SOL: 4.6 };
   let thr = 1500;
   let t = 0;
-  const emit = () => setTimeout(() => h.onLine(formatStatus(s)), 120);
+  let closed = false;
+  const emit = () => setTimeout(() => { if (!closed) h.onLine(formatStatus(s)); }, 120);
   const applyAuto = () => {
     if (s.AUTO) { const dark = (s.LDR ?? 0) < thr; s.SL = dark; s.BL = dark; }
   };
@@ -193,6 +213,7 @@ export function connectDemo(h: Handlers): Transport {
   return {
     name: "HVM-SmartCity (Demo)",
     async send(cmd) {
+      if (closed) throw new Error("Not connected");
       const [k = "", v = ""] = cmd.split(":");
       if (k in s && (v === "0" || v === "1")) (s as any)[k] = v === "1";
       else if (k === "THR") thr = Number(v) || 0;
@@ -208,10 +229,11 @@ export function connectDemo(h: Handlers): Transport {
         if (arr) (["SL", "BL", "GR", "RD", "WT", "HT", "PM"] as const).forEach((x, i) => (s[x] = !!arr[i]));
       }
       applyAuto();
-      setTimeout(() => h.onLine("OK:" + cmd), 60);
+      setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60);
       emit();
     },
     disconnect() {
+      closed = true;
       clearInterval(timer);
       h.onDiagnostics?.({ ...initialDiagnostics, stage: "Demo stopped" });
       h.onDisconnect(false);
