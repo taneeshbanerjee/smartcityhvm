@@ -2,6 +2,7 @@ import { BookOpen, RefreshCw, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { NUS_SERVICE, NUS_WRITE, NUS_NOTIFY } from "@/lib/smartcity";
+import { getRecoverySteps } from "@/lib/recovery-guidance";
 import type { TransportDiagnostics, TransportError } from "@/lib/transport";
 
 const commands = [
@@ -27,6 +28,7 @@ export function TestingTools({ supported, connection, name, demo, diagnostics, e
   diagnostics: TransportDiagnostics; errors: TransportError[];
   recentReplies: { text: string; time: string }[]; onRequestStatus: () => void;
 }) {
+  const recoverySteps = getRecoverySteps(supported, connection, demo, errors[0]);
   return <div className="grid grid-cols-2 gap-2">
     <Dialog>
       <DialogTrigger asChild><Button variant="outline" className="h-11 px-2"><BookOpen />Command reference</Button></DialogTrigger>
@@ -69,6 +71,27 @@ export function TestingTools({ supported, connection, name, demo, diagnostics, e
           </dl>
           {demo && <p className="text-sm text-muted-foreground">Simulated only. No Bluetooth service or characteristic has been checked.</p>}
           {!supported && <p className="text-sm text-muted-foreground">Use Chrome on Android or a supported desktop browser over HTTPS. Safari on iPhone and Firefox do not support Web Bluetooth.</p>}
+        </section>
+        <section className="space-y-2 border-t border-border pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-semibold">Recent device responses</h3>
+            <Button variant="outline" size="sm" disabled={connection !== "connected" || demo} onClick={onRequestStatus}>
+              <RefreshCw /> Request status
+            </Button>
+          </div>
+          {recentReplies.length === 0 ? <p className="text-sm text-muted-foreground">No device replies received this session.</p> :
+            <ol className="max-h-44 space-y-2 overflow-y-auto">
+              {recentReplies.map((reply, i) => <li key={`${reply.time}-${i}`} className="rounded-md bg-muted p-2">
+                <p className="text-xs text-muted-foreground">{reply.time}</p>
+                <code className="block break-all text-xs">{reply.text}</code>
+              </li>)}
+            </ol>}
+        </section>
+        <section className="space-y-2 border-t border-border pt-4">
+          <h3 className="font-semibold">Recovery steps</h3>
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+            {recoverySteps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
         </section>
         <section className="border-t border-border pt-4">
           <h3 className="mb-2 font-semibold">Recent transport errors</h3>
