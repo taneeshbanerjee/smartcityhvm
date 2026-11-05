@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ModelRouteImport } from './routes/model'
+import { Route as VoiceAgentRouteImport } from './routes/voice-agent'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ModelRoute = ModelRouteImport.update({
+  id: '/model',
+  path: '/model',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VoiceAgentRoute = VoiceAgentRouteImport.update({
+  id: '/voice-agent',
+  path: '/voice-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/model': typeof ModelRoute
+  '/voice-agent': typeof VoiceAgentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/model': typeof ModelRoute
+  '/voice-agent': typeof VoiceAgentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/model': typeof ModelRoute
+  '/voice-agent': typeof VoiceAgentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/model' | '/voice-agent'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/model' | '/voice-agent'
+  id: '__root__' | '/' | '/model' | '/voice-agent'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ModelRoute: typeof ModelRoute
+  VoiceAgentRoute: typeof VoiceAgentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/model': {
+      id: '/model'
+      path: '/model'
+      fullPath: '/model'
+      preLoaderRoute: typeof ModelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/voice-agent': {
+      id: '/voice-agent'
+      path: '/voice-agent'
+      fullPath: '/voice-agent'
+      preLoaderRoute: typeof VoiceAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ModelRoute: ModelRoute,
+  VoiceAgentRoute: VoiceAgentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
