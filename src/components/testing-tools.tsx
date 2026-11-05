@@ -1,4 +1,4 @@
-import { BookOpen, Stethoscope } from "lucide-react";
+import { BookOpen, RefreshCw, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { NUS_SERVICE, NUS_WRITE, NUS_NOTIFY } from "@/lib/smartcity";
@@ -25,6 +25,7 @@ const commands = [
 export function TestingTools({ supported, connection, name, demo, diagnostics, errors }: {
   supported: boolean; connection: string; name: string; demo: boolean;
   diagnostics: TransportDiagnostics; errors: TransportError[];
+  recentReplies: { text: string; time: string }[]; onRequestStatus: () => void;
 }) {
   return <div className="grid grid-cols-2 gap-2">
     <Dialog>
