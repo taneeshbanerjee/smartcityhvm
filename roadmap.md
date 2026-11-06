@@ -1,6 +1,6 @@
-- [ ] Add recent device responses and actionable recovery steps to Bluetooth diagnostics.
-- [ ] Add the supplied 3D model as an in-app view with a dashboard entry point.
-- [ ] Add the supplied description audio, supported Bluetooth output selection, and embedded Voice Agent.
+- [x] Add recent device responses and actionable recovery steps to Bluetooth diagnostics.
+- [x] Add the supplied 3D model as an in-app view with a dashboard entry point.
+- [x] Add the supplied description audio, supported Bluetooth output selection, and embedded Voice Agent.
 - [ ] Verify the additions in preview; physical Bluetooth routing and hosted Voice Agent availability remain device/service dependent.
 - [x] Add an in-app ESP32 command reference.
 - [x] Add a dismissible top install notice with browser-supported installation and manual fallback.
