@@ -18,7 +18,7 @@ export const Route = createFileRoute("/model")({
 
 function ModelPage() {
   return (
-    <main className="flex min-h-screen flex-col bg-background text-foreground">
+    <main className="flex h-[calc(100dvh-4rem)] min-h-[32rem] flex-col bg-background text-foreground">
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
         <Button variant="outline" size="icon" asChild><Link to="/" aria-label="Back to Smart City Control"><ArrowLeft /></Link></Button>
         <h1 className="min-w-0 flex-1 truncate font-display font-semibold">Smart City 3D Model</h1>
@@ -29,7 +29,6 @@ function ModelPage() {
         src="/smart-city-model/index.html"
         sandbox="allow-scripts allow-pointer-lock"
         className="min-h-0 flex-1 border-0"
-        style={{ height: "calc(100dvh - 4rem)" }}
       />
     </main>
   );
