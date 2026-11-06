@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner";
 import {
   Bluetooth, BluetoothOff, Building2, Droplets, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot,
+  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
@@ -254,6 +254,7 @@ function Index() {
           <Button variant="outline" asChild className="h-12"><Link to="/model"><Box />3D model</Link></Button>
           <Button variant="outline" asChild className="h-12"><Link to="/voice-agent"><Bot />Voice agent</Link></Button>
         </div>
+        <Button variant="outline" asChild className="h-12 w-full"><Link to="/esp32-code"><FileCode2 />ESP32 code</Link></Button>
 
         <SmartCityMedia />
 
