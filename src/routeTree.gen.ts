@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as Esp32CodeRouteImport } from './routes/esp32-code'
 import { Route as ModelRouteImport } from './routes/model'
 import { Route as VoiceAgentRouteImport } from './routes/voice-agent'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Esp32CodeRoute = Esp32CodeRouteImport.update({
+  id: '/esp32-code',
+  path: '/esp32-code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ModelRoute = ModelRouteImport.update({
@@ -31,30 +37,34 @@ const VoiceAgentRoute = VoiceAgentRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/esp32-code': typeof Esp32CodeRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/esp32-code': typeof Esp32CodeRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/esp32-code': typeof Esp32CodeRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/model' | '/voice-agent'
+  fullPaths: '/' | '/esp32-code' | '/model' | '/voice-agent'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/model' | '/voice-agent'
-  id: '__root__' | '/' | '/model' | '/voice-agent'
+  to: '/' | '/esp32-code' | '/model' | '/voice-agent'
+  id: '__root__' | '/' | '/esp32-code' | '/model' | '/voice-agent'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  Esp32CodeRoute: typeof Esp32CodeRoute
   ModelRoute: typeof ModelRoute
   VoiceAgentRoute: typeof VoiceAgentRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/esp32-code': {
+      id: '/esp32-code'
+      path: '/esp32-code'
+      fullPath: '/esp32-code'
+      preLoaderRoute: typeof Esp32CodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/model': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  Esp32CodeRoute: Esp32CodeRoute,
   ModelRoute: ModelRoute,
   VoiceAgentRoute: VoiceAgentRoute,
 }

@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, Mic2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const voiceAgentUrl = "https://elevenlabs.io/app/talk-to?agent_id=agent_8501m6p7jphke1xrmpp9zc6zm02c&branch_id=agtbrch_3101m6p7jrzwfkabjvn07824dv8x";
+const voiceAgentUrl = "https://elevenlabs.io/app/talk-to?agent_id=agent_6501m6s6yy59fht8mfqcfk30wycb";
+const voiceAgentId = "agent_6501m6s6yy59fht8mfqcfk30wycb";
 
 export const Route = createFileRoute("/voice-agent")({
   head: () => ({
@@ -30,7 +31,7 @@ function VoiceAgentPage() {
     const mountWidget = () => {
       if (!active || !host) return;
       const widget = document.createElement("elevenlabs-convai");
-      widget.setAttribute("agent-id", "agent_8501m6p7jphke1xrmpp9zc6zm02c");
+      widget.setAttribute("agent-id", voiceAgentId);
       host.replaceChildren(widget);
       setWidgetReady(true);
     };
