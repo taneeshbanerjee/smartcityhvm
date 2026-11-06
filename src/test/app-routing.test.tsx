@@ -14,4 +14,11 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("matches the in-app 3D model and voice agent pages", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    expect(router.matchRoutes("/model").at(-1)?.routeId).not.toBe(rootRouteId);
+    expect(router.matchRoutes("/voice-agent").at(-1)?.routeId).not.toBe(rootRouteId);
+  });
 });
