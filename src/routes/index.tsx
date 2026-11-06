@@ -1,16 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   Bluetooth, BluetoothOff, Building2, Droplets, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal,
+  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
 import { TestingTools } from "@/components/testing-tools";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { SmartCityMedia } from "@/components/smart-city-media";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,6 +51,7 @@ function Index() {
   const [bleOk, setBleOk] = useState(true);
   const [diagnostics, setDiagnostics] = useState(initialDiagnostics);
   const [transportErrors, setTransportErrors] = useState<TransportError[]>([]);
+  const [recentReplies, setRecentReplies] = useState<{ text: string; time: string }[]>([]);
   const [voiceOk, setVoiceOk] = useState(false);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -78,6 +82,7 @@ function Index() {
   }, []);
 
   const onLine = useCallback((line: string) => {
+    setRecentReplies((replies) => [{ text: line, time: new Date().toLocaleTimeString() }, ...replies].slice(0, 20));
     const p = parseStatus(line);
     if (p) setState((s) => ({ ...s, ...p }));
     else log("rx", line);
@@ -244,7 +249,14 @@ function Index() {
           )}
         </section>
 
-        <TestingTools supported={bleOk} connection={conn} name={devName} demo={demo} diagnostics={diagnostics} errors={transportErrors} />
+        <TestingTools supported={bleOk} connection={conn} name={devName} demo={demo} diagnostics={diagnostics} errors={transportErrors} recentReplies={recentReplies} onRequestStatus={() => { void send("GET"); }} />
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" asChild className="h-12"><Link to="/model"><Box />3D model</Link></Button>
+          <Button variant="outline" asChild className="h-12"><Link to="/voice-agent"><Bot />Voice agent</Link></Button>
+        </div>
+
+        <SmartCityMedia />
 
         <Card title="Lighting" icon={<Lamp size={18} />}>
           <div className="grid grid-cols-2 gap-3">
