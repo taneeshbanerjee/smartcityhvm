@@ -1,4 +1,5 @@
 import type { TransportDiagnostics, TransportError } from "@/lib/transport";
+import { NUS_NOTIFY, NUS_SERVICE, NUS_WRITE } from "@/lib/smartcity";
 
 export function buildDiagnosticsReport({
   generatedAt,
@@ -30,9 +31,9 @@ export function buildDiagnosticsReport({
     `Transport stage: ${diagnostics.stage}`,
     "",
     "NORDIC UART AVAILABILITY",
-    `Service: ${diagnostics.service}`,
-    `Write characteristic: ${diagnostics.write}`,
-    `Notify characteristic: ${diagnostics.notify}`,
+    `Service (${NUS_SERVICE}): ${diagnostics.service}`,
+    `Write characteristic (${NUS_WRITE}): ${diagnostics.write}`,
+    `Notify characteristic (${NUS_NOTIFY}): ${diagnostics.notify}`,
     `Notifications: ${diagnostics.notifications}`,
     "",
     "RECENT ESP32 REPLIES",
