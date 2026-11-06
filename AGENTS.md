@@ -14,3 +14,4 @@
 - Transport emits optional diagnostic and error callbacks; testing panels consume these instead of accessing Bluetooth directly, so device checks remain authoritative and demo checks stay explicitly simulated.
 - The root-mounted install notice captures browser install events before the splash finishes, with session-scoped dismissal and manual installation fallback because browser support varies.
 - Keep user-supplied interactive model experiences isolated in sandboxed pages, with dedicated routes for supporting experiences so the ESP32 dashboard stays focused.
+- Keep troubleshooting report assembly as a pure helper alongside recovery guidance so report contents can be tested independently of browser downloads.

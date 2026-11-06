@@ -1,8 +1,8 @@
-import { BookOpen, RefreshCw, Stethoscope } from "lucide-react";
+import { BookOpen, Download, RefreshCw, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { NUS_SERVICE, NUS_WRITE, NUS_NOTIFY } from "@/lib/smartcity";
-import { getRecoverySteps } from "@/lib/recovery-guidance";
+import { buildDiagnosticsReport, getRecoverySteps } from "@/lib/recovery-guidance";
 import type { TransportDiagnostics, TransportError } from "@/lib/transport";
 
 const commands = [
@@ -29,6 +29,26 @@ export function TestingTools({ supported, connection, name, demo, diagnostics, e
   recentReplies: { text: string; time: string }[]; onRequestStatus: () => void;
 }) {
   const recoverySteps = getRecoverySteps(supported, connection, demo, errors[0]);
+  const downloadReport = () => {
+    const report = buildDiagnosticsReport({
+      generatedAt: new Date().toLocaleString(),
+      supported,
+      connection: demo ? "Connected (Demo)" : connection,
+      device: connection === "disconnected" ? "None connected" : name || "Not selected",
+      diagnostics,
+      errors,
+      recentReplies,
+      recoverySteps,
+    });
+    const url = URL.createObjectURL(new Blob([report], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `smartcity-bluetooth-report-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  };
   return <div className="grid grid-cols-2 gap-2">
     <Dialog>
       <DialogTrigger asChild><Button variant="outline" className="h-11 px-2"><BookOpen />Command reference</Button></DialogTrigger>
@@ -58,6 +78,11 @@ export function TestingTools({ supported, connection, name, demo, diagnostics, e
           <DialogTitle className="font-display tracking-normal">Pairing diagnostics</DialogTitle>
           <DialogDescription>Live connection checks · errors retained for this app session.</DialogDescription>
         </DialogHeader>
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={downloadReport}>
+            <Download /> Download report
+          </Button>
+        </div>
         <dl className="divide-y divide-border text-sm">
           {[["Web Bluetooth", supported ? "Supported" : "Not supported"], ["Connection", demo ? "Connected (Demo)" : connection], ["Device", connection === "disconnected" ? "None connected" : name || "Not selected"], ["Transport stage", diagnostics.stage]].map(([label, value]) =>
             <div key={label} className="flex justify-between gap-4 py-2"><dt className="text-muted-foreground">{label}</dt><dd className="text-right capitalize">{value}</dd></div>)}

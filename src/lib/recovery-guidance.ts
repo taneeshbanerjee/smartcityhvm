@@ -1,4 +1,52 @@
-import type { TransportError } from "@/lib/transport";
+import type { TransportDiagnostics, TransportError } from "@/lib/transport";
+
+export function buildDiagnosticsReport({
+  generatedAt,
+  supported,
+  connection,
+  device,
+  diagnostics,
+  errors,
+  recentReplies,
+  recoverySteps,
+}: {
+  generatedAt: string;
+  supported: boolean;
+  connection: string;
+  device: string;
+  diagnostics: TransportDiagnostics;
+  errors: TransportError[];
+  recentReplies: { text: string; time: string }[];
+  recoverySteps: string[];
+}): string {
+  const lines = [
+    "SmartCity Control — Bluetooth Troubleshooting Report",
+    `Generated: ${generatedAt}`,
+    "",
+    "BLUETOOTH STATUS",
+    `Web Bluetooth: ${supported ? "Supported" : "Not supported"}`,
+    `Connection: ${connection}`,
+    `Device: ${device || "None selected"}`,
+    `Transport stage: ${diagnostics.stage}`,
+    "",
+    "NORDIC UART AVAILABILITY",
+    `Service: ${diagnostics.service}`,
+    `Write characteristic: ${diagnostics.write}`,
+    `Notify characteristic: ${diagnostics.notify}`,
+    `Notifications: ${diagnostics.notifications}`,
+    "",
+    "RECENT ESP32 REPLIES",
+    ...(recentReplies.length ? recentReplies.map(({ time, text }) => `[${time}] ${text}`) : ["No device replies received this session."]),
+    "",
+    "RECENT TRANSPORT ERRORS",
+    ...(errors.length ? errors.map(({ time, stage, name, message }) => `[${time}] ${stage} — ${name}: ${message}`) : ["No transport errors recorded."]),
+    "",
+    "RECOVERY STEPS",
+    ...recoverySteps.map((step, index) => `${index + 1}. ${step}`),
+    "",
+  ];
+  return lines.join("\n");
+}
 
 export function getRecoverySteps(
   supported: boolean,
