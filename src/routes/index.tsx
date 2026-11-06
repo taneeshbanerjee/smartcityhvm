@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner";
 import {
   Bluetooth, BluetoothOff, Building2, Droplets, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2,
+  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
@@ -30,6 +30,7 @@ export const Route = createFileRoute("/")({
 
 type Conn = "disconnected" | "connecting" | "connected";
 interface LogItem { id: number; dir: "tx" | "rx" | "info"; text: string; time: string }
+type ModelControl = { channel: "smartcity-model-control"; version: 1; type: "state"; theme?: "night" | "day"; angle?: number; presentation?: "background" | "fullscreen" };
 
 const SHOW_STEPS = [
   ["SL:1", "BL:0", "GR:1", "RD:0"], ["WT:1", "RD:1"], ["BL:1", "SL:0", "HT:1"],
@@ -54,9 +55,18 @@ function Index() {
   const [voiceOk, setVoiceOk] = useState(false);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [cityView, setCityView] = useState<"night" | "day">("night");
+  const [modelFullscreen, setModelFullscreen] = useState(false);
   const tRef = useRef<Transport | null>(null);
+  const modelFrameRef = useRef<HTMLIFrameElement | null>(null);
   const showRef = useRef<number | null>(null);
   const logId = useRef(0);
+
+  const sendModelControl = useCallback((control: Omit<ModelControl, "channel" | "version" | "type">) => {
+    const message: ModelControl = { channel: "smartcity-model-control", version: 1, type: "state", ...control };
+    // The model remains sandboxed without allow-same-origin, so its target origin is opaque.
+    modelFrameRef.current?.contentWindow?.postMessage(message, "*");
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setSplash(false), 1400);
@@ -70,6 +80,37 @@ function Index() {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
+  useEffect(() => {
+    sendModelControl({ theme: cityView });
+  }, [cityView, sendModelControl]);
+  useEffect(() => {
+    let frame = 0;
+    const syncScrollAngle = () => {
+      frame = 0;
+      if (document.fullscreenElement === modelFrameRef.current) return;
+      const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+      const progress = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+      sendModelControl({ angle: 0.35 + progress * Math.PI * 2 });
+    };
+    const scheduleSync = () => {
+      if (!frame) frame = window.requestAnimationFrame(syncScrollAngle);
+    };
+    const onFullscreenChange = () => {
+      const fullscreen = document.fullscreenElement === modelFrameRef.current;
+      setModelFullscreen(fullscreen);
+      sendModelControl({ presentation: fullscreen ? "fullscreen" : "background" });
+    };
+    window.addEventListener("scroll", scheduleSync, { passive: true });
+    window.addEventListener("resize", scheduleSync);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    scheduleSync();
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", scheduleSync);
+      window.removeEventListener("resize", scheduleSync);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+    };
+  }, [sendModelControl]);
   useEffect(() => () => {
     if (showRef.current) clearInterval(showRef.current);
     tRef.current?.disconnect();
@@ -152,6 +193,24 @@ function Index() {
   const scene = (s: string) => { if (s === "show") return startShow(); stopShow(); send("SCENE:" + s); };
   const allOff = () => { stopShow(); send("ALL:0"); };
   const toggle = (k: SwitchKey | "AUTO") => send(`${k}:${state[k] ? 0 : 1}`);
+  const openModelFullscreen = async () => {
+    const frame = modelFrameRef.current;
+    if (!frame?.requestFullscreen) {
+      toast.info("Full-screen viewing isn't available in this browser.");
+      return;
+    }
+    try {
+      await frame.requestFullscreen();
+    } catch {
+      toast.error("Couldn't open the model full screen. Check your browser permissions.");
+    }
+  };
+  const onModelLoad = () => {
+    sendModelControl({ theme: cityView, presentation: modelFullscreen ? "fullscreen" : "background" });
+    const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+    const progress = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+    sendModelControl({ angle: 0.35 + progress * Math.PI * 2 });
+  };
 
   const speak = (text: string) => {
     if (!("speechSynthesis" in window)) return;
@@ -200,9 +259,20 @@ function Index() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-3xl bg-background pb-28 font-sans text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/85 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
+    <div className="relative min-h-screen pb-28 font-sans text-foreground">
+      <iframe
+        ref={modelFrameRef}
+        title="Smart City night view background"
+        src="/smart-city-model/index.html?background=1"
+        sandbox="allow-scripts allow-pointer-lock"
+        allow="fullscreen"
+        allowFullScreen
+        aria-hidden="true"
+        onLoad={onModelLoad}
+        className={`fixed inset-0 z-0 h-dvh w-full border-0 transition-opacity duration-700 ${cityView === "night" ? "opacity-60" : "opacity-40"} ${modelFullscreen ? "pointer-events-auto" : "pointer-events-none"}`}
+      />
+      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/65 px-4 py-3 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-5xl items-center gap-3">
           <img src="/logo.png" alt={`${ORG_NAME} logo`} className="h-11 w-auto" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-accent">{ORG_NAME}</p>
@@ -213,13 +283,13 @@ function Index() {
         </div>
       </header>
 
-      <main className="space-y-4 p-4">
-        <section className="rounded-3xl bg-hero p-4 text-primary-foreground shadow-card">
+      <main className="relative z-10 mx-auto max-w-5xl space-y-5 px-4 py-5 md:space-y-6 md:py-7">
+        <section className="rounded-3xl glass-hero p-4 text-primary-foreground md:p-6">
           <div className="flex items-center justify-between gap-2">
             <Chip conn={conn} name={devName} />
             {voiceOk && (
               <button aria-label="Voice command" onClick={listen}
-                className={`grid h-12 w-12 place-items-center rounded-full bg-primary-foreground/15 transition active:scale-95 ${listening ? "animate-pulse ring-4 ring-accent" : ""}`}>
+                className={`grid h-12 w-12 place-items-center rounded-full border border-primary-foreground/20 bg-primary-foreground/15 backdrop-blur-xl transition active:scale-95 ${listening ? "animate-pulse ring-4 ring-accent" : ""}`}>
                 {listening ? <MicOff size={22} /> : <Mic size={22} />}
               </button>
             )}
@@ -227,19 +297,39 @@ function Index() {
           {transcript && <p className="mt-3 rounded-xl bg-primary-foreground/10 px-3 py-2 text-sm">“{transcript}”</p>}
           <div className="mt-4 grid grid-cols-2 gap-2">
             {conn === "connected" ? (
-              <button onClick={disconnect} className="col-span-2 h-12 rounded-2xl bg-primary-foreground/15 font-semibold active:scale-[.98]">
+              <button onClick={disconnect} className="col-span-2 h-12 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/15 font-semibold backdrop-blur-xl active:scale-[.98]">
                 {demo ? "Exit demo" : "Disconnect"}
               </button>
             ) : (
               <>
                 <button disabled={conn === "connecting" || !bleOk} onClick={() => connect(false)}
-                  className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-flame text-lg font-bold text-accent-foreground shadow-card disabled:opacity-60 active:scale-[.98]">
+                  className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl border border-primary-foreground/25 bg-primary/75 text-lg font-bold text-primary-foreground shadow-card backdrop-blur-xl disabled:opacity-60 active:scale-[.98]">
                   {conn === "connecting" ? <Loader2 className="animate-spin" /> : <Bluetooth />} Connect
                 </button>
-                <button disabled={!bleOk || conn === "connecting"} onClick={() => connect(true)} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold disabled:opacity-50">Show all devices</button>
-                 <button disabled={conn === "connecting"} onClick={startDemo} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold disabled:opacity-50">Demo mode</button>
+                <button disabled={!bleOk || conn === "connecting"} onClick={() => connect(true)} className="h-11 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/15 text-sm font-semibold backdrop-blur-xl disabled:opacity-50">Show all devices</button>
+                 <button disabled={conn === "connecting"} onClick={startDemo} className="h-11 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/15 text-sm font-semibold backdrop-blur-xl disabled:opacity-50">Demo mode</button>
               </>
             )}
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-primary-foreground/20 pt-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">City model</p>
+              <p className="text-xs text-primary-foreground/75">Scroll to orbit around the model</p>
+            </div>
+            <div className="flex items-center gap-1 rounded-full border border-primary-foreground/15 bg-primary-foreground/10 p-1 backdrop-blur-xl" aria-label="Model lighting view">
+              <Button type="button" variant="ghost" aria-pressed={cityView === "night"} onClick={() => setCityView("night")}
+                className={`h-9 rounded-full px-3 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground ${cityView === "night" ? "bg-primary-foreground/25" : ""}`}>
+                <Moon />Night
+              </Button>
+              <Button type="button" variant="ghost" aria-pressed={cityView === "day"} onClick={() => setCityView("day")}
+                className={`h-9 rounded-full px-3 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground ${cityView === "day" ? "bg-primary-foreground/25" : ""}`}>
+                <Sun />Day
+              </Button>
+            </div>
+            <Button type="button" variant="ghost" onClick={() => { void openModelFullscreen(); }}
+              className="h-10 rounded-full border border-primary-foreground/20 bg-primary-foreground/12 px-4 text-primary-foreground backdrop-blur-xl hover:bg-primary-foreground/25 hover:text-primary-foreground">
+              <Maximize />Full screen
+            </Button>
           </div>
           {!bleOk && (
             <p className="mt-3 rounded-xl bg-destructive/25 px-3 py-2 text-sm">
@@ -251,13 +341,14 @@ function Index() {
         <TestingTools supported={bleOk} connection={conn} name={devName} demo={demo} diagnostics={diagnostics} errors={transportErrors} recentReplies={recentReplies} onRequestStatus={() => { void send("GET"); }} />
 
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" asChild className="h-12"><Link to="/model"><Box />3D model</Link></Button>
-          <Button variant="outline" asChild className="h-12"><Link to="/voice-agent"><Bot />Voice agent</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/model"><Box />3D model</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/voice-agent"><Bot />Voice agent</Link></Button>
         </div>
-        <Button variant="outline" asChild className="h-12 w-full"><Link to="/esp32-code"><FileCode2 />ESP32 code</Link></Button>
+        <Button variant="ghost" asChild className="glass-control h-12 w-full rounded-xl"><Link to="/esp32-code"><FileCode2 />ESP32 code</Link></Button>
 
         <SmartCityMedia />
 
+        <div className="grid gap-5 md:grid-cols-2 md:gap-6">
         <Card title="Lighting" icon={<Lamp size={18} />}>
           <div className="grid grid-cols-2 gap-3">
             <Tile label="Street lights" icon={<Lamp />} on={state.SL} disabled={disabled} onClick={() => toggle("SL")} />
@@ -272,7 +363,7 @@ function Index() {
             <Tile label="Wind turbine" icon={<Fan className={state.WT ? "animate-spin" : ""} />} on={state.WT} disabled={disabled} onClick={() => toggle("WT")} />
             <Tile label="Water turbine" icon={<Waves />} on={state.HT} disabled={disabled} onClick={() => toggle("HT")} />
             <Tile label="Water pump" icon={<Droplets />} on={state.PM} disabled={disabled} onClick={() => toggle("PM")} />
-            <div className="flex flex-col justify-between rounded-2xl bg-muted p-3">
+            <div className="flex flex-col justify-between rounded-2xl glass-control p-3">
               <SunMedium className="text-accent" />
               <div><p className="text-sm font-semibold">Solar</p><p className="text-xs text-muted-foreground">{state.SOL != null ? `${state.SOL.toFixed(2)} V` : "—"}</p></div>
             </div>
@@ -290,7 +381,7 @@ function Index() {
           <div className="grid grid-cols-4 gap-2">
             {([["day", Sun], ["night", Moon], ["eco", Leaf], ["show", Sparkles]] as const).map(([s, I]) => (
               <button key={s} disabled={disabled} onClick={() => scene(s)}
-                className={`flex h-20 flex-col items-center justify-center gap-1 rounded-2xl text-sm font-semibold capitalize transition active:scale-95 disabled:opacity-40 ${s === "show" && showRunning ? "bg-flame text-accent-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                className={`flex h-20 flex-col items-center justify-center gap-1 rounded-2xl border border-border/60 text-sm font-semibold capitalize backdrop-blur-xl transition active:scale-95 disabled:opacity-40 ${s === "show" && showRunning ? "bg-flame text-accent-foreground" : "glass-control text-secondary-foreground"}`}>
                 <I size={22} />{s}
               </button>
             ))}
@@ -315,12 +406,13 @@ function Index() {
         </Card>
 
         <button disabled={disabled} onClick={allOff}
-          className="flex h-16 w-full items-center justify-center gap-2 rounded-3xl bg-destructive text-xl font-bold text-destructive-foreground shadow-card transition active:scale-[.98] disabled:opacity-40">
+          className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/40 bg-destructive/80 text-xl font-bold text-destructive-foreground shadow-card backdrop-blur-xl transition active:scale-[.98] disabled:opacity-40">
           <Power /> ALL OFF
         </button>
+        </div>
       </main>
 
-      <footer className="px-4 py-6 text-center text-sm text-muted-foreground">Project by {ORG_NAME}</footer>
+      <footer className="relative z-10 px-4 py-6 text-center text-sm text-muted-foreground">Project by {ORG_NAME}</footer>
 
       {logOpen && (
         <div className="fixed inset-0 z-30 flex items-end bg-foreground/40" onClick={() => setLogOpen(false)}>
@@ -347,7 +439,7 @@ function Index() {
 }
 
 function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
-  return <button aria-label={label} onClick={onClick} className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-secondary-foreground active:scale-95">{children}</button>;
+  return <button aria-label={label} onClick={onClick} className="grid h-11 w-11 place-items-center rounded-full glass-control text-secondary-foreground active:scale-95">{children}</button>;
 }
 
 function Chip({ conn, name }: { conn: Conn; name: string }) {
@@ -363,7 +455,7 @@ function Chip({ conn, name }: { conn: Conn; name: string }) {
 
 function Card({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-3xl border border-border bg-card p-4 shadow-card animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <section className="rounded-2xl glass-panel p-4 animate-in fade-in slide-in-from-bottom-2 duration-500 md:p-5">
       <h2 className="mb-3 flex items-center gap-2 font-display font-semibold"><span className="text-primary">{icon}</span>{title}</h2>
       {children}
     </section>
@@ -376,7 +468,7 @@ function Tile({ label, icon, on, disabled, onClick, tone = "primary" }: {
   const onCls = tone === "success" ? "bg-success text-primary-foreground" : tone === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground";
   return (
     <button disabled={disabled} onClick={onClick} aria-pressed={on}
-      className={`flex h-24 flex-col justify-between rounded-2xl p-3 text-left transition-all duration-300 active:scale-95 disabled:opacity-40 ${on ? onCls + " shadow-card" : "bg-muted text-foreground"}`}>
+      className={`flex h-24 flex-col justify-between rounded-2xl p-3 text-left transition-all duration-300 active:scale-95 disabled:opacity-40 ${on ? onCls + " shadow-card" : "glass-control text-foreground"}`}>
       {icon}
       <div><p className="text-sm font-semibold">{label}</p><p className="text-xs opacity-75">{on ? "ON" : "OFF"}</p></div>
     </button>
@@ -387,7 +479,7 @@ function Ring({ label, value, max, unit, digits = 0 }: { label: string; value: n
   const pct = value == null ? 0 : Math.min(1, Math.max(0, value / max));
   const C = 2 * Math.PI * 42;
   return (
-    <div className="flex flex-col items-center rounded-2xl bg-muted p-3">
+    <div className="flex flex-col items-center rounded-2xl glass-control p-3">
       <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
         <circle cx="50" cy="50" r="42" fill="none" strokeWidth="10" className="stroke-border" />
         <circle cx="50" cy="50" r="42" fill="none" strokeWidth="10" strokeLinecap="round" className="stroke-accent transition-all duration-700"
