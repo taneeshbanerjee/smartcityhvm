@@ -30,6 +30,9 @@ body.fly #dock{display:none}#dpad[hidden]{display:none}
 #sky{position:fixed;inset:0;background:linear-gradient(#01040c,#0a1c33 62%,#17314f);opacity:0;transition:opacity 1.4s linear;pointer-events:none}
 body.night #sky{opacity:1}
 body.night{--card:rgba(11,20,33,.92);--fg:#e8eff7;--ac:#ffb43c;--on:#1d1300}
+body.embedded-background{background:transparent!important}
+body.embedded-background #sky{display:none}
+body.embedded-background #top,body.embedded-background #dock,body.embedded-background #bar,body.embedded-background #dpad{display:none!important}
 .card,button{transition:background-color .6s,color .6s}
 #cutp{max-height:46vh;overflow-y:auto}#cutp[hidden]{display:none}
 #cutp .g{display:grid;grid-template-columns:repeat(var(--n,2),1fr);gap:6px;margin:6px 0}
@@ -57,7 +60,7 @@ const T=THREE,S=new T.Scene(),cv=document.getElementById('c');
 const REG={},W=new T.Group(),BL=[],HL=[];let CUR=null;
 function G(id,n,dim){CUR=id;if(id&&!REG[id])REG[id]={n,o:[],dim}}
 function A(o){if(!CUR)return o;o.userData.k=CUR;REG[CUR].o.push(o);return o}
-const ren=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;
+const ren=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});ren.setPixelRatio(Math.min(devicePixelRatio,new URLSearchParams(location.search).has('background')?1:2));ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;
 const cam=new T.PerspectiveCamera(45,1,1,1500);
 const hemi=new T.HemisphereLight(0xffffff,0x7a8a60,.85);S.add(hemi);
 const sun=new T.DirectionalLight(0xfff4e0,.8);sun.position.set(40,90,50);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
@@ -285,10 +288,23 @@ else if(P.size==2){moved=99;const q=[...P.entries()].find(([k])=>k!=e.pointerId)
 P.set(e.pointerId,[e.clientX,e.clientY])});
 ['pointerup','pointercancel'].forEach(k=>cv.addEventListener(k,e=>{if(k=='pointerup'&&P.size==1){if(DRAW.on)dUp(e);else if(moved<8)tap(e)}P.delete(e.pointerId)}));
 cv.addEventListener('wheel',e=>{e.preventDefault();R=zoom(R*(1+e.deltaY*.001))},{passive:false});
+function setNight(on){document.body.classList.toggle('night',on);NIGHT.go(on);$('night').textContent=on?'☀️ Day':'🌙 Night';$('night').setAttribute('aria-pressed',String(on));$('hint').textContent=on?'Gold: generation · Blue: power grid · Cream: buildings':'Drag to rotate · pinch to zoom · tap any part for its size'}
+function applyDashboardControl(event){
+if(event.source!==window.parent)return;
+const d=event.data;
+if(!d||typeof d!=='object'||Array.isArray(d)||d.channel!=='smartcity-model-control'||d.version!==1||d.type!=='state')return;
+const valid=new Set(['channel','version','type','theme','angle','presentation']);
+if(Object.keys(d).some(k=>!valid.has(k)))return;
+if(d.theme!==undefined){if(d.theme!=='night'&&d.theme!=='day')return;setNight(d.theme==='night')}
+if(d.angle!==undefined){if(typeof d.angle!=='number'||!Number.isFinite(d.angle)||d.angle<0||d.angle>20)return;spin=false;th=d.angle}
+if(d.presentation!==undefined){if(d.presentation!=='background'&&d.presentation!=='fullscreen')return;document.body.classList.toggle('embedded-background',d.presentation==='background')}
+}
+addEventListener('message',applyDashboardControl);
+if(new URLSearchParams(location.search).has('background')){document.body.classList.add('embedded-background');setNight(true)}
 $('spin').onclick=()=>spin=!spin;$('topv').onclick=()=>{ph=.12;R=zoom(R0*s*1.05)};$('reset').onclick=()=>{th=.35;ph=.95;R=R0*s;spin=false};
 $('lab').onclick=()=>labs.forEach(l=>l.visible=!l.visible);
 $('sizes').onclick=()=>{$('panel').hidden=!$('panel').hidden};
-$('night').onclick=()=>{const on=!document.body.classList.contains('night');document.body.classList.toggle('night',on);NIGHT.go(on);$('night').textContent=on?'☀️ Day':'🌙 Night';$('night').setAttribute('aria-pressed',on);$('hint').textContent=on?'Gold: generation · Blue: power grid · Cream: buildings':'Drag to rotate · pinch to zoom · tap any part for its size'};
+$('night').onclick=()=>setNight(!document.body.classList.contains('night'));
 $('len').onchange=()=>{const v=Math.min(300,Math.max(40,+$('len').value||110));$('len').value=v;setS(v)};
 $('len').oninput=()=>{const v=+$('len').value;if(v>=40&&v<=300)setS(v)};
 

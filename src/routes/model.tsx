@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Expand } from "lucide-react";
+import { ArrowLeft, Expand, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/model")({
   head: () => ({
@@ -17,17 +19,36 @@ export const Route = createFileRoute("/model")({
 });
 
 function ModelPage() {
+  const modelFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  const openFullscreen = async () => {
+    const frame = modelFrameRef.current;
+    if (!frame?.requestFullscreen) {
+      toast.info("Full-screen viewing isn't available in this browser.");
+      return;
+    }
+    try {
+      await frame.requestFullscreen();
+    } catch {
+      toast.error("Couldn't open the model full screen. Check your browser permissions.");
+    }
+  };
+
   return (
     <main className="flex h-[calc(100dvh-4rem)] min-h-[32rem] flex-col bg-background text-foreground">
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
         <Button variant="outline" size="icon" asChild><Link to="/" aria-label="Back to Smart City Control"><ArrowLeft /></Link></Button>
         <h1 className="min-w-0 flex-1 truncate font-display font-semibold">Smart City 3D Model</h1>
+        <Button variant="outline" size="sm" onClick={() => { void openFullscreen(); }}><Maximize /> Full screen</Button>
         <Button variant="outline" size="sm" asChild><a href="/smart-city-model/index.html" target="_blank" rel="noreferrer"><Expand /> Open separately</a></Button>
       </header>
       <iframe
+        ref={modelFrameRef}
         title="Interactive Smart City 3D Model"
         src="/smart-city-model/index.html"
         sandbox="allow-scripts allow-pointer-lock"
+        allow="fullscreen"
+        allowFullScreen
         className="min-h-0 flex-1 border-0"
       />
     </main>

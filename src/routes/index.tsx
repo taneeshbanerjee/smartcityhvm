@@ -348,6 +348,7 @@ function Index() {
 
         <SmartCityMedia />
 
+        <div className="grid gap-5 md:grid-cols-2 md:gap-6">
         <Card title="Lighting" icon={<Lamp size={18} />}>
           <div className="grid grid-cols-2 gap-3">
             <Tile label="Street lights" icon={<Lamp />} on={state.SL} disabled={disabled} onClick={() => toggle("SL")} />
@@ -408,6 +409,7 @@ function Index() {
           className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/40 bg-destructive/80 text-xl font-bold text-destructive-foreground shadow-card backdrop-blur-xl transition active:scale-[.98] disabled:opacity-40">
           <Power /> ALL OFF
         </button>
+        </div>
       </main>
 
       <footer className="relative z-10 px-4 py-6 text-center text-sm text-muted-foreground">Project by {ORG_NAME}</footer>
@@ -437,7 +439,7 @@ function Index() {
 }
 
 function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
-  return <button aria-label={label} onClick={onClick} className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-secondary-foreground active:scale-95">{children}</button>;
+  return <button aria-label={label} onClick={onClick} className="grid h-11 w-11 place-items-center rounded-full glass-control text-secondary-foreground active:scale-95">{children}</button>;
 }
 
 function Chip({ conn, name }: { conn: Conn; name: string }) {
