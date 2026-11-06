@@ -10,7 +10,10 @@ describe("Bluetooth recovery guidance", () => {
 
   it("suggests show-all pairing when the device picker finds no device", () => {
     const steps = getRecoverySteps(true, "disconnected", false, {
-      time: "10:00", stage: "Choosing device", name: "NotFoundError", message: "No device found",
+      time: "10:00",
+      stage: "Choosing device",
+      name: "NotFoundError",
+      message: "No device found",
     });
     expect(steps.join(" ")).toContain("Show all devices");
     expect(steps.join(" ")).toContain("ESP32 powered");
@@ -18,7 +21,10 @@ describe("Bluetooth recovery guidance", () => {
 
   it("asks for the advertised Nordic UART service when service discovery fails", () => {
     const steps = getRecoverySteps(true, "disconnected", false, {
-      time: "10:00", stage: "Finding NUS service", name: "NotFoundError", message: "Service missing",
+      time: "10:00",
+      stage: "Finding NUS service",
+      name: "NotFoundError",
+      message: "Service missing",
     });
     expect(steps.join(" ")).toContain("service UUID");
   });
@@ -31,8 +37,16 @@ describe("Bluetooth troubleshooting report", () => {
       supported: true,
       connection: "Connected",
       device: "HVM-SmartCity",
-      diagnostics: { stage: "Ready", service: "available", write: "available", notify: "available", notifications: "available" },
-      errors: [{ time: "20:29", stage: "Sending SL:1", name: "NetworkError", message: "Write failed" }],
+      diagnostics: {
+        stage: "Ready",
+        service: "available",
+        write: "available",
+        notify: "available",
+        notifications: "available",
+      },
+      errors: [
+        { time: "20:29", stage: "Sending SL:1", name: "NetworkError", message: "Write failed" },
+      ],
       recentReplies: [{ time: "20:28", text: "ST:SL=1;LDR=732;SOL=4.62" }],
       recoverySteps: ["Use Request status to ask the ESP32 for a fresh reply."],
     });

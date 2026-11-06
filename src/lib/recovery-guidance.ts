@@ -36,10 +36,14 @@ export function buildDiagnosticsReport({
     `Notifications: ${diagnostics.notifications}`,
     "",
     "RECENT ESP32 REPLIES",
-    ...(recentReplies.length ? recentReplies.map(({ time, text }) => `[${time}] ${text}`) : ["No device replies received this session."]),
+    ...(recentReplies.length
+      ? recentReplies.map(({ time, text }) => `[${time}] ${text}`)
+      : ["No device replies received this session."]),
     "",
     "RECENT TRANSPORT ERRORS",
-    ...(errors.length ? errors.map(({ time, stage, name, message }) => `[${time}] ${stage} — ${name}: ${message}`) : ["No transport errors recorded."]),
+    ...(errors.length
+      ? errors.map(({ time, stage, name, message }) => `[${time}] ${stage} — ${name}: ${message}`)
+      : ["No transport errors recorded."]),
     "",
     "RECOVERY STEPS",
     ...recoverySteps.map((step, index) => `${index + 1}. ${step}`),
@@ -61,28 +65,48 @@ export function getRecoverySteps(
     ];
   }
 
-  if (demo) return ["Demo mode is simulated; connect to the powered ESP32 to check real Bluetooth services and replies."];
+  if (demo)
+    return [
+      "Demo mode is simulated; connect to the powered ESP32 to check real Bluetooth services and replies.",
+    ];
 
   if (latestError?.name === "BluetoothOff") {
-    return ["Turn on Bluetooth in your device settings, keep the ESP32 powered and nearby, then connect again."];
+    return [
+      "Turn on Bluetooth in your device settings, keep the ESP32 powered and nearby, then connect again.",
+    ];
   }
   if (latestError?.name === "NotAllowedError" || latestError?.name === "SecurityError") {
-    return ["Allow Bluetooth or nearby-device access for this site in browser settings, reload the page, then connect again."];
+    return [
+      "Allow Bluetooth or nearby-device access for this site in browser settings, reload the page, then connect again.",
+    ];
   }
   if (latestError?.stage === "Choosing device" && latestError.name === "NotFoundError") {
-    return ["Keep the ESP32 powered and nearby, then choose Show all devices if it is not listed as HVM-SmartCity."];
+    return [
+      "Keep the ESP32 powered and nearby, then choose Show all devices if it is not listed as HVM-SmartCity.",
+    ];
   }
   if (latestError?.stage === "Finding NUS service") {
-    return ["The ESP32 did not expose the Nordic UART service; check that its firmware uses the service UUID shown above."];
+    return [
+      "The ESP32 did not expose the Nordic UART service; check that its firmware uses the service UUID shown above.",
+    ];
   }
-  if (latestError?.stage === "Finding write characteristic" || latestError?.stage === "Finding notify characteristic") {
-    return ["Check the ESP32 firmware exposes both Nordic UART write and notify characteristics, then disconnect and pair again."];
+  if (
+    latestError?.stage === "Finding write characteristic" ||
+    latestError?.stage === "Finding notify characteristic"
+  ) {
+    return [
+      "Check the ESP32 firmware exposes both Nordic UART write and notify characteristics, then disconnect and pair again.",
+    ];
   }
   if (latestError?.stage === "Connection lost" || connection === "connecting") {
-    return ["Move the phone closer, keep the ESP32 powered, and wait for the automatic retry before pairing again."];
+    return [
+      "Move the phone closer, keep the ESP32 powered, and wait for the automatic retry before pairing again.",
+    ];
   }
   if (connection === "connected") {
-    return ["Use Request status to ask the ESP32 for a fresh reply; confirm notifications are enabled in the firmware."];
+    return [
+      "Use Request status to ask the ESP32 for a fresh reply; confirm notifications are enabled in the firmware.",
+    ];
   }
   return ["Turn on Bluetooth, power the ESP32, keep it nearby, and connect from this secure page."];
 }
