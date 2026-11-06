@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("original ESP32 firmware source", () => {
   it("preserves the uploaded file bytes and CRLF line endings", () => {
-    const source = readFileSync(new URL("../../public/esp32-code/HVM_SmartCity_ESP32.ino", import.meta.url));
+    const source = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"));
     const text = source.toString("utf8");
 
     expect(createHash("sha256").update(source).digest("hex")).toBe(
