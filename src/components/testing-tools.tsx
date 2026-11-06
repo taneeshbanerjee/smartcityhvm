@@ -23,7 +23,7 @@ const commands = [
   ["GET", "Request current output states, Auto state, LDR reading, and solar voltage."],
 ];
 
-export function TestingTools({ supported, connection, name, demo, diagnostics, errors }: {
+export function TestingTools({ supported, connection, name, demo, diagnostics, errors, recentReplies, onRequestStatus }: {
   supported: boolean; connection: string; name: string; demo: boolean;
   diagnostics: TransportDiagnostics; errors: TransportError[];
   recentReplies: { text: string; time: string }[]; onRequestStatus: () => void;
