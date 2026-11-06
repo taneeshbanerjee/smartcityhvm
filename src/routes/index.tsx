@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
 
 type Conn = "disconnected" | "connecting" | "connected";
 interface LogItem { id: number; dir: "tx" | "rx" | "info"; text: string; time: string }
-type ModelControl = { channel: "smartcity-model-control"; version: 1; theme?: "night" | "day"; angle?: number; presentation?: "background" | "fullscreen" };
+type ModelControl = { channel: "smartcity-model-control"; version: 1; type: "state"; theme?: "night" | "day"; angle?: number; presentation?: "background" | "fullscreen" };
 
 const SHOW_STEPS = [
   ["SL:1", "BL:0", "GR:1", "RD:0"], ["WT:1", "RD:1"], ["BL:1", "SL:0", "HT:1"],
@@ -63,7 +63,7 @@ function Index() {
   const logId = useRef(0);
 
   const sendModelControl = useCallback((control: Omit<ModelControl, "channel" | "version">) => {
-    const message: ModelControl = { channel: "smartcity-model-control", version: 1, ...control };
+    const message: ModelControl = { channel: "smartcity-model-control", version: 1, type: "state", ...control };
     // The model remains sandboxed without allow-same-origin, so its target origin is opaque.
     modelFrameRef.current?.contentWindow?.postMessage(message, "*");
   }, []);
@@ -289,7 +289,7 @@ function Index() {
             <Chip conn={conn} name={devName} />
             {voiceOk && (
               <button aria-label="Voice command" onClick={listen}
-                className={`grid h-12 w-12 place-items-center rounded-full bg-primary-foreground/15 transition active:scale-95 ${listening ? "animate-pulse ring-4 ring-accent" : ""}`}>
+                className={`grid h-12 w-12 place-items-center rounded-full border border-primary-foreground/20 bg-primary-foreground/15 backdrop-blur-xl transition active:scale-95 ${listening ? "animate-pulse ring-4 ring-accent" : ""}`}>
                 {listening ? <MicOff size={22} /> : <Mic size={22} />}
               </button>
             )}
@@ -297,17 +297,17 @@ function Index() {
           {transcript && <p className="mt-3 rounded-xl bg-primary-foreground/10 px-3 py-2 text-sm">“{transcript}”</p>}
           <div className="mt-4 grid grid-cols-2 gap-2">
             {conn === "connected" ? (
-              <button onClick={disconnect} className="col-span-2 h-12 rounded-2xl bg-primary-foreground/15 font-semibold active:scale-[.98]">
+              <button onClick={disconnect} className="col-span-2 h-12 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/15 font-semibold backdrop-blur-xl active:scale-[.98]">
                 {demo ? "Exit demo" : "Disconnect"}
               </button>
             ) : (
               <>
                 <button disabled={conn === "connecting" || !bleOk} onClick={() => connect(false)}
-                  className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-flame text-lg font-bold text-accent-foreground shadow-card disabled:opacity-60 active:scale-[.98]">
+                  className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl border border-primary-foreground/25 bg-primary/75 text-lg font-bold text-primary-foreground shadow-card backdrop-blur-xl disabled:opacity-60 active:scale-[.98]">
                   {conn === "connecting" ? <Loader2 className="animate-spin" /> : <Bluetooth />} Connect
                 </button>
-                <button disabled={!bleOk || conn === "connecting"} onClick={() => connect(true)} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold disabled:opacity-50">Show all devices</button>
-                 <button disabled={conn === "connecting"} onClick={startDemo} className="h-11 rounded-2xl bg-primary-foreground/15 text-sm font-semibold disabled:opacity-50">Demo mode</button>
+                <button disabled={!bleOk || conn === "connecting"} onClick={() => connect(true)} className="h-11 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/15 text-sm font-semibold backdrop-blur-xl disabled:opacity-50">Show all devices</button>
+                 <button disabled={conn === "connecting"} onClick={startDemo} className="h-11 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/15 text-sm font-semibold backdrop-blur-xl disabled:opacity-50">Demo mode</button>
               </>
             )}
           </div>
@@ -380,7 +380,7 @@ function Index() {
           <div className="grid grid-cols-4 gap-2">
             {([["day", Sun], ["night", Moon], ["eco", Leaf], ["show", Sparkles]] as const).map(([s, I]) => (
               <button key={s} disabled={disabled} onClick={() => scene(s)}
-                className={`flex h-20 flex-col items-center justify-center gap-1 rounded-2xl text-sm font-semibold capitalize transition active:scale-95 disabled:opacity-40 ${s === "show" && showRunning ? "bg-flame text-accent-foreground" : "bg-secondary text-secondary-foreground"}`}>
+                className={`flex h-20 flex-col items-center justify-center gap-1 rounded-2xl border border-border/60 text-sm font-semibold capitalize backdrop-blur-xl transition active:scale-95 disabled:opacity-40 ${s === "show" && showRunning ? "bg-flame text-accent-foreground" : "glass-control text-secondary-foreground"}`}>
                 <I size={22} />{s}
               </button>
             ))}
@@ -405,7 +405,7 @@ function Index() {
         </Card>
 
         <button disabled={disabled} onClick={allOff}
-          className="flex h-16 w-full items-center justify-center gap-2 rounded-3xl bg-destructive text-xl font-bold text-destructive-foreground shadow-card transition active:scale-[.98] disabled:opacity-40">
+          className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/40 bg-destructive/80 text-xl font-bold text-destructive-foreground shadow-card backdrop-blur-xl transition active:scale-[.98] disabled:opacity-40">
           <Power /> ALL OFF
         </button>
       </main>
