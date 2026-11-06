@@ -9,3 +9,4 @@
 - [x] Add live pairing diagnostics and recent transport errors.
 - [x] Verify reference, diagnostics, and existing controls with automated tests and desktop/mobile browser checks; physical ESP32 pairing remains unverified.
 - [x] Add a downloadable Bluetooth troubleshooting report with Nordic UART identifiers and verify its contents and browser download.
+- [ ] Add an in-app ESP32 sketch viewer with exact-source copy/download, and replace the Voice Agent with the supplied ElevenLabs agent.
