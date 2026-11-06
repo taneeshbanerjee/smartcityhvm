@@ -53,8 +53,12 @@ describe("Bluetooth troubleshooting report", () => {
 
     expect(report).toContain("Web Bluetooth: Supported");
     expect(report).toContain("Service (6e400001-b5a3-f393-e0a9-e50e24dcca9e): available");
-    expect(report).toContain("Write characteristic (6e400002-b5a3-f393-e0a9-e50e24dcca9e): available");
-    expect(report).toContain("Notify characteristic (6e400003-b5a3-f393-e0a9-e50e24dcca9e): available");
+    expect(report).toContain(
+      "Write characteristic (6e400002-b5a3-f393-e0a9-e50e24dcca9e): available",
+    );
+    expect(report).toContain(
+      "Notify characteristic (6e400003-b5a3-f393-e0a9-e50e24dcca9e): available",
+    );
     expect(report).toContain("[20:28] ST:SL=1;LDR=732;SOL=4.62");
     expect(report).toContain("[20:29] Sending SL:1 — NetworkError: Write failed");
     expect(report).toContain("1. Use Request status to ask the ESP32 for a fresh reply.");
