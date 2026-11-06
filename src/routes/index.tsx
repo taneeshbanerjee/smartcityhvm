@@ -62,7 +62,7 @@ function Index() {
   const showRef = useRef<number | null>(null);
   const logId = useRef(0);
 
-  const sendModelControl = useCallback((control: Omit<ModelControl, "channel" | "version">) => {
+  const sendModelControl = useCallback((control: Omit<ModelControl, "channel" | "version" | "type">) => {
     const message: ModelControl = { channel: "smartcity-model-control", version: 1, type: "state", ...control };
     // The model remains sandboxed without allow-same-origin, so its target origin is opaque.
     modelFrameRef.current?.contentWindow?.postMessage(message, "*");

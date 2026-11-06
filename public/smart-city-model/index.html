@@ -295,9 +295,12 @@ const d=event.data;
 if(!d||typeof d!=='object'||Array.isArray(d)||d.channel!=='smartcity-model-control'||d.version!==1||d.type!=='state')return;
 const valid=new Set(['channel','version','type','theme','angle','presentation']);
 if(Object.keys(d).some(k=>!valid.has(k)))return;
-if(d.theme!==undefined){if(d.theme!=='night'&&d.theme!=='day')return;setNight(d.theme==='night')}
-if(d.angle!==undefined){if(typeof d.angle!=='number'||!Number.isFinite(d.angle)||d.angle<0||d.angle>20)return;spin=false;th=d.angle}
-if(d.presentation!==undefined){if(d.presentation!=='background'&&d.presentation!=='fullscreen')return;document.body.classList.toggle('embedded-background',d.presentation==='background')}
+if(d.theme!==undefined&&d.theme!=='night'&&d.theme!=='day')return;
+if(d.angle!==undefined&&(typeof d.angle!=='number'||!Number.isFinite(d.angle)||d.angle<0||d.angle>7))return;
+if(d.presentation!==undefined&&d.presentation!=='background'&&d.presentation!=='fullscreen')return;
+if(d.theme!==undefined)setNight(d.theme==='night');
+if(d.angle!==undefined){spin=false;th=d.angle}
+if(d.presentation!==undefined)document.body.classList.toggle('embedded-background',d.presentation==='background');
 }
 addEventListener('message',applyDashboardControl);
 if(new URLSearchParams(location.search).has('background')){document.body.classList.add('embedded-background');setNight(true)}
