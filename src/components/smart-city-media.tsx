@@ -70,13 +70,13 @@ export function SmartCityMedia() {
   };
 
   return (
-    <section className="space-y-3 rounded-3xl border border-border bg-card p-4 shadow-card">
+    <section className="space-y-3 rounded-2xl glass-panel p-4 md:p-5">
       <h2 className="flex items-center gap-2 font-display font-semibold"><Music2 className="text-primary" size={18} />Smart City Description</h2>
       <audio ref={audioRef} className="w-full" controls preload="metadata" src={descriptionAudio.url} aria-label="Smart City Description audio" />
       <label className="flex items-center gap-2 text-sm font-medium" htmlFor="description-audio-output"><Headphones size={16} /> Audio output</label>
       <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
         <Select value={selectedOutput} onValueChange={chooseOutput}>
-          <SelectTrigger id="description-audio-output" aria-label="Choose description audio output" disabled={!canChooseOutput}>
+        <SelectTrigger id="description-audio-output" aria-label="Choose description audio output" disabled={!canChooseOutput} className="glass-control">
             <SelectValue placeholder="Use device output" />
           </SelectTrigger>
           <SelectContent>
@@ -86,11 +86,11 @@ export function SmartCityMedia() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={chooseKaraokeOutput}><Bluetooth /> Choose Bluetooth karaoke</Button>
+        <Button variant="ghost" className="glass-control" onClick={chooseKaraokeOutput}><Bluetooth /> Choose Bluetooth karaoke</Button>
       </div>
       {!canChooseOutput && <p className="text-xs text-muted-foreground">To play through karaoke, pair it in your device’s Bluetooth settings and select it as the device audio output. Direct output selection is not available in this browser.</p>}
       {canChooseOutput && <p className="flex items-start gap-2 text-xs text-muted-foreground"><Bluetooth size={14} className="mt-0.5 shrink-0" />Pair the karaoke speaker in Bluetooth settings first. If the browser offers it, Choose Bluetooth karaoke can route this recording directly; the voice agent follows the device audio output.</p>}
-      <Button variant="outline" size="sm" onClick={loadOutputs}>Refresh audio outputs</Button>
+      <Button variant="ghost" size="sm" className="glass-control" onClick={loadOutputs}>Refresh audio outputs</Button>
     </section>
   );
 }

@@ -47,7 +47,6 @@ function ModelPage() {
         title="Interactive Smart City 3D Model"
         src="/smart-city-model/index.html"
         sandbox="allow-scripts allow-pointer-lock"
-        allow="fullscreen"
         allowFullScreen
         className="min-h-0 flex-1 border-0"
       />
