@@ -265,7 +265,6 @@ function Index() {
         title="Smart City night view background"
         src="/smart-city-model/index.html?background=1"
         sandbox="allow-scripts allow-pointer-lock"
-        allow="fullscreen"
         allowFullScreen
         aria-hidden="true"
         onLoad={onModelLoad}

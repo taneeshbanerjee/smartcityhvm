@@ -291,6 +291,7 @@ cv.addEventListener('wheel',e=>{e.preventDefault();R=zoom(R*(1+e.deltaY*.001))},
 function setNight(on){document.body.classList.toggle('night',on);NIGHT.go(on);$('night').textContent=on?'☀️ Day':'🌙 Night';$('night').setAttribute('aria-pressed',String(on));$('hint').textContent=on?'Gold: generation · Blue: power grid · Cream: buildings':'Drag to rotate · pinch to zoom · tap any part for its size'}
 function applyDashboardControl(event){
 if(event.source!==window.parent)return;
+if(!new Set(['http://localhost:8080','https://smartcityhvm.lovable.app','https://id-preview--c6b870eb-4347-471a-afe8-8b74d34cd822.lovable.app']).has(event.origin))return;
 const d=event.data;
 if(!d||typeof d!=='object'||Array.isArray(d)||d.channel!=='smartcity-model-control'||d.version!==1||d.type!=='state')return;
 const valid=new Set(['channel','version','type','theme','angle','presentation']);
