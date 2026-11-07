@@ -280,6 +280,8 @@ return{go:on=>{tg=on?1:0},tick};
 let th=.35,ph=.95,R=90,R0=90,spin=false,s=1,moved=0,flyOn=false;const P=new Map(),$=id=>document.getElementById(id);
 function fit(){const a=innerWidth/innerHeight;cam.aspect=a;cam.fov=a<1?(flyOn?75:70):(flyOn?62:45);R0=a<1?150:85;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight,false)}
 addEventListener('resize',fit);fit();R=R0;
+const modelResizeObserver=new ResizeObserver(()=>{fit();R=R0*s});modelResizeObserver.observe(document.documentElement);
+requestAnimationFrame(()=>{fit();R=R0*s});
 const zoom=v=>Math.min(260*s,Math.max(22*s,v));
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);if(P.size==1){moved=0;if(DRAW.on)dDown(e)}});
 cv.addEventListener('pointermove',e=>{const o=P.get(e.pointerId);if(!o)return;
