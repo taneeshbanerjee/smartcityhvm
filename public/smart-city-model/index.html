@@ -77,7 +77,7 @@ const X=p=>(p-549)/10,Z=p=>(p-300)/10,obs=[],blk=(x,z,a,b)=>obs.push([x,z,a,b]);
 const gt=cv2(256,256,(g,w,h)=>{g.fillStyle='#78bd45';g.fillRect(0,0,w,h);for(let i=0;i<500;i++){g.fillStyle=i%2?'rgba(130,200,80,.35)':'rgba(90,160,50,.35)';g.beginPath();g.arc(Math.random()*w,Math.random()*h,2+Math.random()*10,0,7);g.fill()}});
 gt.wrapS=gt.wrapT=T.RepeatWrapping;gt.repeat.set(10,6);
 G('ground','Ground (top of base board)');const gr=put(new T.Mesh(new T.PlaneGeometry(110,60).rotateX(-Math.PI/2),new T.MeshLambertMaterial({map:gt})),0,0,0);gr.castShadow=false;
-G('slab','Base board slab (support)');B(0,-2.06,0,112,2,62,0x5d4a32);G(null);put(new T.Mesh(new T.CircleGeometry(400,40).rotateX(-Math.PI/2),M(0xe9f2f8)),0,-2.1,0).castShadow=false;
+G('slab','Base board slab (support)');B(0,-2.06,0,112,2,62,0x5d4a32);G(null);const backdrop=put(new T.Mesh(new T.CircleGeometry(400,40).rotateX(-Math.PI/2),M(0xe9f2f8)),0,-2.1,0);backdrop.castShadow=false;if(new URLSearchParams(location.search).has('background'))backdrop.visible=false;
 const wpoly=[];
 function water(pts){const sh=new T.Shape(pts.map(p=>new T.Vector2(X(p[0]),-Z(p[1]))));
 const m=new T.Mesh(new T.ShapeGeometry(sh),new T.MeshLambertMaterial({color:0x1fa0e6,polygonOffset:true,polygonOffsetFactor:-1-wpoly.length,polygonOffsetUnits:-1-wpoly.length}));m.rotation.x=-Math.PI/2;m.position.y=.06+wpoly.length*.004;m.receiveShadow=true;S.add(m);G('water'+wpoly.length,'Water body (river / lake)');A(m);G(null);wpoly.push(pts.map(p=>[X(p[0]),Z(p[1])]))}
