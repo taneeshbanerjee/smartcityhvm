@@ -124,23 +124,23 @@
 @utility bg-flame { background-image: var(--gradient-flame); }
 @utility shadow-card { box-shadow: var(--shadow-card); }
 @utility glass-panel {
-  background-color: color-mix(in oklab, var(--card) 78%, transparent);
-  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
-  backdrop-filter: blur(22px) saturate(155%);
+  background-color: color-mix(in oklab, var(--card) 34%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  backdrop-filter: blur(12px) saturate(155%);
   box-shadow: var(--shadow-card);
 }
 @utility glass-control {
-  background-color: color-mix(in oklab, var(--card) 58%, transparent);
-  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
-  backdrop-filter: blur(18px) saturate(150%);
+  background-color: color-mix(in oklab, var(--card) 22%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  backdrop-filter: blur(12px) saturate(150%);
   transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
-  &:hover { background-color: color-mix(in oklab, var(--card) 82%, transparent); }
+  &:hover { background-color: color-mix(in oklab, var(--card) 38%, transparent); }
   &:active { transform: scale(.98); }
 }
 @utility glass-hero {
-  background-color: color-mix(in oklab, var(--primary) 82%, transparent);
-  border: 1px solid color-mix(in oklab, var(--primary-foreground) 20%, transparent);
-  backdrop-filter: blur(24px) saturate(155%);
+  background-color: color-mix(in oklab, var(--primary) 34%, transparent);
+  border: 1px solid color-mix(in oklab, var(--primary-foreground) 24%, transparent);
+  backdrop-filter: blur(18px) saturate(155%);
   box-shadow: var(--shadow-card);
 }
 @keyframes splash-pop { 0% { opacity: 0; transform: scale(.8) } 60% { opacity: 1; transform: scale(1.04) } 100% { transform: scale(1) } }

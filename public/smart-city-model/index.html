@@ -278,7 +278,7 @@ return{go:on=>{tg=on?1:0},tick};
 
 /* camera orbit */
 let th=.35,ph=.95,R=90,R0=90,spin=false,s=1,moved=0,flyOn=false;const P=new Map(),$=id=>document.getElementById(id);
-function fit(){const a=innerWidth/innerHeight;cam.aspect=a;cam.fov=a<1?(flyOn?75:70):(flyOn?62:45);R0=a<1?150:85;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight,false)}
+function fit(){const a=innerWidth/innerHeight,embedded=document.body.classList.contains('embedded-background');cam.aspect=a;cam.fov=embedded?(a<1?70:45):a<1?(flyOn?75:70):(flyOn?62:45);R0=embedded?(a<1?180:95):a<1?150:85;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight,false)}
 addEventListener('resize',fit);fit();R=R0;
 const modelResizeObserver=new ResizeObserver(()=>{fit();R=R0*s});modelResizeObserver.observe(document.documentElement);
 requestAnimationFrame(()=>{fit();R=R0*s});
