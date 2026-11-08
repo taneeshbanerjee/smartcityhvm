@@ -405,7 +405,7 @@ function Index() {
         </Card>
 
         <button disabled={disabled} onClick={allOff}
-          className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/40 bg-destructive/80 text-xl font-bold text-destructive-foreground shadow-card backdrop-blur-xl transition active:scale-[.98] disabled:opacity-40">
+          className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/40 bg-destructive/45 text-xl font-bold text-destructive-foreground shadow-card backdrop-blur-xl transition active:scale-[.98] disabled:opacity-40">
           <Power /> ALL OFF
         </button>
         </div>
@@ -464,7 +464,7 @@ function Card({ title, icon, children }: { title: string; icon: ReactNode; child
 function Tile({ label, icon, on, disabled, onClick, tone = "primary" }: {
   label: string; icon: ReactNode; on: boolean; disabled: boolean; onClick: () => void; tone?: "primary" | "success" | "destructive";
 }) {
-  const onCls = tone === "success" ? "bg-success text-primary-foreground" : tone === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground";
+  const onCls = tone === "success" ? "border border-success/50 bg-success/40 text-primary-foreground backdrop-blur-xl" : tone === "destructive" ? "border border-destructive/50 bg-destructive/40 text-destructive-foreground backdrop-blur-xl" : "border border-primary/50 bg-primary/40 text-primary-foreground backdrop-blur-xl";
   return (
     <button disabled={disabled} onClick={onClick} aria-pressed={on}
       className={`flex h-24 flex-col justify-between rounded-2xl border border-border/50 p-3 text-left backdrop-blur-xl transition-all duration-300 active:scale-95 disabled:opacity-40 ${on ? onCls + " shadow-card" : "glass-control text-foreground"}`}>
