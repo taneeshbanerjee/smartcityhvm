@@ -302,7 +302,7 @@ function Index() {
             ) : (
               <>
                 <button disabled={conn === "connecting" || !bleOk} onClick={() => connect(false)}
-                  className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl border border-primary-foreground/25 bg-primary/75 text-lg font-bold text-primary-foreground shadow-card backdrop-blur-xl disabled:opacity-60 active:scale-[.98]">
+                className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl border border-primary-foreground/25 bg-primary/45 text-lg font-bold text-primary-foreground shadow-card backdrop-blur-xl disabled:opacity-60 active:scale-[.98]">
                   {conn === "connecting" ? <Loader2 className="animate-spin" /> : <Bluetooth />} Connect
                 </button>
                 <button disabled={!bleOk || conn === "connecting"} onClick={() => connect(true)} className="h-11 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/15 text-sm font-semibold backdrop-blur-xl disabled:opacity-50">Show all devices</button>
@@ -467,7 +467,7 @@ function Tile({ label, icon, on, disabled, onClick, tone = "primary" }: {
   const onCls = tone === "success" ? "bg-success text-primary-foreground" : tone === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground";
   return (
     <button disabled={disabled} onClick={onClick} aria-pressed={on}
-      className={`flex h-24 flex-col justify-between rounded-2xl p-3 text-left transition-all duration-300 active:scale-95 disabled:opacity-40 ${on ? onCls + " shadow-card" : "glass-control text-foreground"}`}>
+      className={`flex h-24 flex-col justify-between rounded-2xl border border-border/50 p-3 text-left backdrop-blur-xl transition-all duration-300 active:scale-95 disabled:opacity-40 ${on ? onCls + " shadow-card" : "glass-control text-foreground"}`}>
       {icon}
       <div><p className="text-sm font-semibold">{label}</p><p className="text-xs opacity-75">{on ? "ON" : "OFF"}</p></div>
     </button>

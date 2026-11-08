@@ -124,21 +124,21 @@
 @utility bg-flame { background-image: var(--gradient-flame); }
 @utility shadow-card { box-shadow: var(--shadow-card); }
 @utility glass-panel {
-  background-color: color-mix(in oklab, var(--card) 78%, transparent);
+  background-color: color-mix(in oklab, var(--card) 50%, transparent);
   border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
-  backdrop-filter: blur(22px) saturate(155%);
+  backdrop-filter: blur(18px) saturate(155%);
   box-shadow: var(--shadow-card);
 }
 @utility glass-control {
-  background-color: color-mix(in oklab, var(--card) 58%, transparent);
+  background-color: color-mix(in oklab, var(--card) 30%, transparent);
   border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
   backdrop-filter: blur(18px) saturate(150%);
   transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
-  &:hover { background-color: color-mix(in oklab, var(--card) 82%, transparent); }
+  &:hover { background-color: color-mix(in oklab, var(--card) 48%, transparent); }
   &:active { transform: scale(.98); }
 }
 @utility glass-hero {
-  background-color: color-mix(in oklab, var(--primary) 82%, transparent);
+  background-color: color-mix(in oklab, var(--primary) 48%, transparent);
   border: 1px solid color-mix(in oklab, var(--primary-foreground) 20%, transparent);
   backdrop-filter: blur(24px) saturate(155%);
   box-shadow: var(--shadow-card);
