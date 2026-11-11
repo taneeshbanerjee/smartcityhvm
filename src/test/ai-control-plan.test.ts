@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changedPlanActions, normalizeControlPlan, planCommands, type ControlPlan } from "@/lib/ai-control-plan";
+import { changedPlanActions, normalizeControlPlan, normalizePlanDescription, planCommands, type ControlPlan } from "@/lib/ai-control-plan";
 import { initialState } from "@/lib/smartcity";
 
 const validPlan: ControlPlan = {
@@ -27,6 +27,8 @@ describe("AI control plan validation", () => {
   });
 
   it("rejects oversized descriptions before sending them to the model", () => {
-    expect("x".repeat(1001).length).toBe(1001);
+    expect(normalizePlanDescription("x".repeat(1001))).toBeNull();
+    expect(normalizePlanDescription("x".repeat(1000))?.length).toBe(1000);
+    expect(normalizePlanDescription("   ")).toBeNull();
   });
 });

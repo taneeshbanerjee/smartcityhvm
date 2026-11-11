@@ -16,3 +16,4 @@
 - Keep user-supplied interactive models in sandboxed pages; parent-page controls use a narrow, versioned message contract so the dashboard can integrate safely without exposing model internals.
 - Keep troubleshooting report assembly as a pure helper alongside recovery guidance so report contents can be tested independently of browser downloads.
 - Serve user-provided firmware as an unchanged static source file and use that same file for viewing, copying, and downloading so its bytes and line endings remain intact.
+- Keep AI Gateway calls in client-safe server-function wrappers with prompts, credentials, and model calls isolated in server-only modules; this keeps provider secrets out of browser code.
