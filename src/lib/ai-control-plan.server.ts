@@ -41,8 +41,9 @@ function readSafeMessage(error: unknown): string | null {
         const record = parsed as Record<string, unknown>;
         if (typeof record["message"] === "string") return record["message"];
         const nested = record["error"];
-        if (nested && typeof nested === "object" && typeof (nested as Record<string, unknown>)["message"] === "string") {
-          return (nested as Record<string, string>)["message"];
+        if (nested && typeof nested === "object") {
+          const nestedMessage = (nested as Record<string, unknown>)["message"];
+          if (typeof nestedMessage === "string") return nestedMessage;
         }
       }
     } catch {

@@ -12,3 +12,5 @@
 - [x] Verify the ESP32 source viewer, byte-identical copy/download behavior, and replacement Voice Agent in preview; hardware and live agent conversations remain device/service dependent.
 - [ ] Refine background model framing across phone and desktop layouts and make dashboard controls translucent enough to reveal the city while scrolling.
 - [ ] Add the secure AI Gateway control-plan generator, preview and explicit apply flow; fix plan validation TypeScript errors and remove dashboard-button blur.
+- [ ] Fix remaining TypeScript/build errors and verify the planner integration.
+- [ ] Integrate the supplied Smart City open-world game and launch video into an in-app experience page.
