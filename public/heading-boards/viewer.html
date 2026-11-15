@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Heading Board 3D Viewer</title>
+<style>
+:root{--s1:#bfe0f7;--s2:#f3f8fc;--fg:#17242e;--card:rgba(255,255,255,.94)}
+@media (prefers-color-scheme:dark){:root{--s1:#0b1d33;--s2:#27455f;--fg:#e8f1f7;--card:rgba(24,38,50,.94)}}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:linear-gradient(var(--s1),var(--s2));color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#msg{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:calc(100% - 32px);background:var(--card);border-radius:12px;padding:10px 14px;box-shadow:0 2px 10px rgba(0,0,0,.2);text-align:center}
+#msg[hidden]{display:none}
+#hint{position:fixed;left:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border-radius:10px;padding:6px 10px;font-size:12px;opacity:.85}
+#hint[hidden]{display:none}
+</style>
+</head><body>
+<div id="msg" role="status">Loading heading board…</div>
+<div id="hint" hidden>Drag to rotate · Pinch or scroll to zoom</div>
+<script src="/smart-city-model/three.min.js"></script>
+<script src="/heading-boards/vendor/fflate.min.js"></script>
+<script src="/heading-boards/vendor/GLTFLoader.js"></script>
+<script src="/heading-boards/vendor/3MFLoader.js"></script>
+<script src="/heading-boards/vendor/OrbitControls.js"></script>
+<script>
+// Heading board viewer. The dashboard sends the model file bytes with a narrow, versioned
+// message so this page can stay sandboxed (opaque origin, no network access to the site).
+(function(){
+var CHANNEL='heading-board-viewer', VERSION=1;
+var msg=document.getElementById('msg'), hint=document.getElementById('hint');
+function show(t){msg.textContent=t;msg.hidden=false}
+function reply(m){m.channel=CHANNEL;m.version=VERSION;parent.postMessage(m,'*')}
+
+var renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+document.body.appendChild(renderer.domElement);
+var scene=new THREE.Scene();
+var camera=new THREE.PerspectiveCamera(40,1,0.1,10000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8899aa,0.9));
+var key=new THREE.DirectionalLight(0xffffff,0.8);key.position.set(1,1.5,2);scene.add(key);
+var fill=new THREE.DirectionalLight(0xffffff,0.35);fill.position.set(-2,0.5,-1);scene.add(fill);
+var controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.screenSpacePanning=true;
+var current=null;
+
+function resize(){var w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+(function loop(){requestAnimationFrame(loop);controls.update();renderer.render(scene,camera)})();
+
+function frame(obj){
+  var box=new THREE.Box3().setFromObject(obj), size=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3());
+  obj.position.sub(c);
+  var r=Math.max(size.x,size.y,size.z)*0.5||1;
+  var vfov=camera.fov*Math.PI/180, hfov=2*Math.atan(Math.tan(vfov/2)*camera.aspect);
+  var dist=r/Math.sin(Math.min(vfov,hfov)/2)*1.05;
+  camera.near=dist/100;camera.far=dist*100;camera.updateProjectionMatrix();
+  camera.position.set(dist*0.25,dist*0.2,dist);
+  controls.target.set(0,0,0);controls.minDistance=r*0.3;controls.maxDistance=dist*5;controls.update();
+}
+
+function place(obj){
+  if(current)scene.remove(current);
+  var holder=new THREE.Group();holder.add(obj);current=holder;scene.add(holder);
+  frame(holder);msg.hidden=true;hint.hidden=false;reply({type:'loaded'});
+}
+
+function load(d){
+  show('Loading heading board…');
+  try{
+    if(d.format==='glb'){
+      new THREE.GLTFLoader().parse(d.data,'',function(g){place(g.scene)},function(e){fail(e)});
+    }else if(d.format==='3mf'){
+      place(new THREE.ThreeMFLoader().parse(d.data));
+    }else fail(new Error('Unsupported format'));
+  }catch(e){fail(e)}
+}
+function fail(e){show('This heading board could not be shown. You can still download the file.');reply({type:'error',message:String(e&&e.message||e)})}
+
+addEventListener('message',function(ev){
+  if(ev.source!==parent)return;
+  var d=ev.data;
+  if(!d||typeof d!=='object'||d.channel!==CHANNEL||d.version!==VERSION)return;
+  if(d.type==='hello'){reply({type:'ready'});return}
+  if(d.type!=='load'||!(d.data instanceof ArrayBuffer))return;
+  load(d);
+});
+// Announce readiness; the dashboard also sends 'hello' in case it started listening later.
+reply({type:'ready'});
+})();
+</script>
+</body></html>

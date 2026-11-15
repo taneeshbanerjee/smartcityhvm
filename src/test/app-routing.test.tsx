@@ -22,4 +22,12 @@ describe("App routing", () => {
     expect(router.matchRoutes("/voice-agent").at(-1)?.routeId).not.toBe(rootRouteId);
     expect(router.matchRoutes("/esp32-code").at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("matches the launch video, circuit diagram, game, and heading board pages", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    for (const path of ["/launch-video", "/circuit-diagram", "/game", "/heading-board/1", "/heading-board/2"]) {
+      expect(router.matchRoutes(path).at(-1)?.routeId).not.toBe(rootRouteId);
+    }
+  });
 });
