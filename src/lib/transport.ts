@@ -194,7 +194,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
 /** Simulated ESP32 for demo mode. */
 export function connectDemo(h: Handlers): Transport {
   h.onDiagnostics?.({ stage: "Demo active — no hardware checked", service: "simulated", write: "simulated", notify: "simulated", notifications: "simulated" });
-  const s: CityState = { ...initialState, LDR: 2200, SOL: 4.6 };
+  const s: CityState = { ...initialState, LDR: 2200 };
   let thr = 1500;
   let t = 0;
   let closed = false;
@@ -205,7 +205,6 @@ export function connectDemo(h: Handlers): Transport {
   const timer = setInterval(() => {
     t += 0.15;
     s.LDR = Math.round(2048 + 1900 * Math.sin(t));
-    s.SOL = Math.max(0, +(2.6 + 2.4 * Math.sin(t)).toFixed(2));
     applyAuto();
     h.onLine(formatStatus(s));
   }, 2000);
@@ -217,16 +216,16 @@ export function connectDemo(h: Handlers): Transport {
       const [k = "", v = ""] = cmd.split(":");
       if (k in s && (v === "0" || v === "1")) (s as any)[k] = v === "1";
       else if (k === "THR") thr = Number(v) || 0;
-      else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT", "HT", "PM"] as const).forEach((x) => (s[x] = false));
+      else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT", "HT"] as const).forEach((x) => (s[x] = false));
       else if (k === "SCENE") {
         const p: Record<string, boolean[]> = {
-          day: [false, false, true, false, true, true, true],
-          night: [true, true, false, true, false, false, false],
-          eco: [true, false, true, false, true, false, false],
-          show: [true, true, true, true, true, true, true],
+          day: [false, false, true, false, true, true],
+          night: [true, true, false, true, false, false],
+          eco: [true, false, true, false, true, false],
+          show: [true, true, true, true, true, true],
         };
         const arr = p[v];
-        if (arr) (["SL", "BL", "GR", "RD", "WT", "HT", "PM"] as const).forEach((x, i) => (s[x] = !!arr[i]));
+        if (arr) (["SL", "BL", "GR", "RD", "WT", "HT"] as const).forEach((x, i) => (s[x] = !!arr[i]));
       }
       applyAuto();
       setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60);

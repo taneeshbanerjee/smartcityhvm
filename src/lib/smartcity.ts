@@ -4,21 +4,21 @@ export const NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 export const NUS_WRITE = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 export const NUS_NOTIFY = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-export type SwitchKey = "SL" | "BL" | "GR" | "RD" | "WT" | "HT" | "PM";
-export const SWITCH_KEYS: SwitchKey[] = ["SL", "BL", "GR", "RD", "WT", "HT", "PM"];
+export type SwitchKey = "SL" | "BL" | "GR" | "RD" | "WT" | "HT";
+export const SWITCH_KEYS: SwitchKey[] = ["SL", "BL", "GR", "RD", "WT", "HT"];
 
 export interface CityState {
   SL: boolean; BL: boolean; GR: boolean; RD: boolean;
-  WT: boolean; HT: boolean; PM: boolean; AUTO: boolean;
-  LDR: number | null; SOL: number | null;
+  WT: boolean; HT: boolean; AUTO: boolean;
+  LDR: number | null;
 }
 
 export const initialState: CityState = {
-  SL: false, BL: false, GR: false, RD: false, WT: false, HT: false, PM: false, AUTO: false,
-  LDR: null, SOL: null,
+  SL: false, BL: false, GR: false, RD: false, WT: false, HT: false, AUTO: false,
+  LDR: null,
 };
 
-/** Parse "ST:SL=1,BL=0,...,AUTO=1;LDR=732;SOL=4.62". Returns null if malformed. */
+/** Parse "ST:SL=1,BL=0,...,AUTO=1;LDR=732". Returns null if malformed. */
 export function parseStatus(line: string): Partial<CityState> | null {
   const t = line.trim();
   if (!t.startsWith("ST:")) return null;
@@ -34,7 +34,7 @@ export function parseStatus(line: string): Partial<CityState> | null {
       if (val !== "0" && val !== "1") continue;
       (out as Record<string, boolean>)[key] = val === "1";
       any = true;
-    } else if (key === "LDR" || key === "SOL") {
+    } else if (key === "LDR") {
       const n = Number(val);
       if (!Number.isFinite(n)) continue;
       out[key] = n;
@@ -46,7 +46,7 @@ export function parseStatus(line: string): Partial<CityState> | null {
 
 export function formatStatus(s: CityState): string {
   const b = (x: boolean) => (x ? 1 : 0);
-  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},HT=${b(s.HT)},PM=${b(s.PM)},AUTO=${b(s.AUTO)};LDR=${Math.round(s.LDR ?? 0)};SOL=${(s.SOL ?? 0).toFixed(2)}`;
+  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},HT=${b(s.HT)},AUTO=${b(s.AUTO)};LDR=${Math.round(s.LDR ?? 0)}`;
 }
 
 /** Map spoken phrase to commands. Returns null if not understood. */
@@ -65,7 +65,6 @@ export function parseVoice(text: string): { cmds: string[]; reply: string; show?
     [/red|beacon/, "RD", "red beacons"],
     [/wind/, "WT", "wind turbine"],
     [/water turbine|hydro/, "HT", "water turbine"],
-    [/pump/, "PM", "water pump"],
   ];
   for (const [re, k, name] of map) {
     if (re.test(t) && (on || off)) return { cmds: [`${k}:${on ? 1 : 0}`], reply: `${name} ${on ? "on" : "off"}` };

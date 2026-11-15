@@ -3,8 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  Bluetooth, BluetoothOff, Building2, Droplets, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost,
+  Bluetooth, BluetoothOff, Building2, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
+  Moon, Power, Radio, Sparkles, Sun, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
@@ -34,7 +34,7 @@ type ModelControl = { channel: "smartcity-model-control"; version: 1; type: "sta
 
 const SHOW_STEPS = [
   ["SL:1", "BL:0", "GR:1", "RD:0"], ["WT:1", "RD:1"], ["BL:1", "SL:0", "HT:1"],
-  ["PM:1", "GR:0"], ["SL:1", "RD:0", "WT:0"], ["BL:0", "GR:1", "HT:0", "PM:0", "RD:1"],
+  ["GR:0"], ["SL:1", "RD:0", "WT:0"], ["BL:0", "GR:1", "HT:0", "RD:1"],
 ];
 
 function Index() {
@@ -368,18 +368,12 @@ function Index() {
           <div className="grid grid-cols-2 gap-3">
             <Tile label="Wind turbine" icon={<Fan className={state.WT ? "animate-spin" : ""} />} on={state.WT} disabled={disabled} onClick={() => toggle("WT")} />
             <Tile label="Water turbine" icon={<Waves />} on={state.HT} disabled={disabled} onClick={() => toggle("HT")} />
-            <Tile label="Water pump" icon={<Droplets />} on={state.PM} disabled={disabled} onClick={() => toggle("PM")} />
-            <div className="flex flex-col justify-between rounded-2xl glass-control p-3">
-              <SunMedium className="text-accent" />
-              <div><p className="text-sm font-semibold">Solar</p><p className="text-xs text-muted-foreground">{state.SOL != null ? `${state.SOL.toFixed(2)} V` : "—"}</p></div>
-            </div>
           </div>
         </Card>
 
         <Card title="Sensors" icon={<Gauge size={18} />}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3">
             <Ring label={state.LDR == null ? "LDR" : state.LDR < thr ? "Night" : "Day"} value={state.LDR} max={4095} unit="" />
-            <Ring label="Solar" value={state.SOL} max={6} unit="V" digits={2} />
           </div>
         </Card>
 

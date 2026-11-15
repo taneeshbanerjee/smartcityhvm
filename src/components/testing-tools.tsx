@@ -19,7 +19,6 @@ const commands = [
   ["RD:1 / RD:0", "Red beacons on / off"],
   ["WT:1 / WT:0", "Wind turbine on / off"],
   ["HT:1 / HT:0", "Water turbine on / off"],
-  ["PM:1 / PM:0", "Water pump on / off"],
   ["AUTO:1 / AUTO:0", "Enable / disable sensor-controlled street and building lights."],
   [
     "THR:1500",
@@ -36,7 +35,7 @@ const commands = [
     "SCENE:show",
     "Request Show scene. The app then cycles individual commands every 1.5 seconds; Stop show ends the cycle without turning outputs off.",
   ],
-  ["GET", "Request current output states, Auto state, LDR reading, and solar voltage."],
+  ["GET", "Request current output states, Auto state, and LDR reading."],
 ];
 
 export function TestingTools({
@@ -108,10 +107,10 @@ export function TestingTools({
           <section className="space-y-2 border-t border-border pt-4">
             <h3 className="font-semibold">Device replies</h3>
             <code className="block break-all rounded-md bg-muted p-3 text-xs">
-              ST:SL=1,BL=0,GR=0,RD=0,WT=0,HT=0,PM=0,AUTO=0;LDR=732;SOL=4.62
+              ST:SL=1,BL=0,GR=0,RD=0,WT=0,HT=0,AUTO=0;LDR=732
             </code>
             <p className="text-sm text-muted-foreground">
-              Output and Auto values: 0 = off, 1 = on. LDR: sensor reading. SOL: volts. Other
+              Output and Auto values: 0 = off, 1 = on. LDR: sensor reading. Other
               replies, including OK acknowledgements, appear in the Activity log.
             </p>
             <p className="text-sm text-muted-foreground">

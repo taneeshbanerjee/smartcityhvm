@@ -23,7 +23,7 @@ describe("Transport diagnostics", () => {
   it("rejects queued writes after disconnect and removes the device listener", async () => {
     const h = harness();
     const transport = await connectBle(false, h.handlers);
-    const pending = transport.send("PM:1");
+    const pending = transport.send("WT:1");
     transport.disconnect();
     await expect(pending).rejects.toThrow("Not connected");
     expect(h.characteristic.writeValue).not.toHaveBeenCalled();
