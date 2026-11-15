@@ -1,14 +1,78 @@
-# Welcome to your Lovable project
+# Smartcityhvm
+
+Build "SmartCity Control", a mobile-first installable PWA that controls an ESP32 smart-city model over Bluetooth Low Energy using Web Bluetooth. Use React + TypeScript + Tailwind. No backend, no login, no database. Fully self-contained and error-free: avoid TypeScript errors by typing navigator.bluetooth as any or adding @types/web-bluetooth.
+
+
+
+ORGANIZATION: define one constant ORG_NAME = "Hariyana Vidya Mandir" and use it everywhere the organization name appears (header, footer, splash, manifest).
+
+
+
+LOGO: A logo image is attached to this prompt (an oval badge with a blue border, white background, red flame, open book, and Sanskrit text). Use it exactly as provided: do not redraw, recolour or distort it. Save it as /public/logo.png. Use it in the header (about 44px tall, next to the name), on a short splash screen at startup, as the favicon, and for the PWA icons. Create square 192x192 and 512x512 PNG icons by centring the logo with padding on a white rounded square, plus a maskable 512 version with the logo inside the central 60% safe zone. Take the app's accent colours from the logo (royal blue, flame red/orange, warm white).
+
+
+
+UI
+
+- Header: logo, ORG_NAME (small) and "Smart City Control Center" (large).
+
+- Modern dashboard, big touch-friendly buttons, rounded cards, smooth animations, light/dark theme with a toggle, lucide-react icons.
+
+- Connection chip: Disconnected / Connecting / Connected with the device name.
+
+- Cards: Lighting (Street lights, Building lights, Green status LEDs, Red beacons), Power (Wind turbine motor, Water turbine motor, Water pump, Solar), Sensors (LDR day/night gauge, solar voltage gauge), Scenes (Day, Night, Eco, Show), Auto Mode toggle with a light-threshold slider, and a red "ALL OFF" button.
+
+- Activity log drawer with recent commands and replies. Footer: "Project by " + ORG_NAME.
+
+
+
+BLUETOOTH (Nordic UART service)
+
+- Service 6e400001-b5a3-f393-e0a9-e50e24dcca9e; write characteristic 6e400002-b5a3-f393-e0a9-e50e24dcca9e; notify characteristic 6e400003-b5a3-f393-e0a9-e50e24dcca9e.
+
+- Connect button (user gesture) uses requestDevice with filters namePrefix "HVM-SmartCity" and that service, with optionalServices set. Offer "Show all devices" as a fallback.
+
+- Send newline-terminated commands: SL:1/0, BL:1/0, GR:1/0, RD:1/0, WT:1/0, HT:1/0, PM:1/0, AUTO:1/0, THR:<0-4095>, ALL:0, SCENE:day|night|eco|show, GET.
+
+- Receive status lines like ST:SL=1,BL=0,GR=1,RD=0,WT=1,HT=0,PM=1,AUTO=1;LDR=732;SOL=4.62. Buffer incoming chunks until a newline, then parse; ignore malformed lines safely.
+
+- Use a sequential write queue (avoid "GATT operation already in progress"), prefer writeValueWithoutResponse, fall back to writeValue.
+
+- Auto-reconnect up to 3 times on disconnect. Disable controls while disconnected. Friendly toasts for cancelled pairing, unsupported browser, Bluetooth off.
+
+- If Web Bluetooth is unsupported (iPhone, Firefox), show a clear message and offer a "Demo mode" that simulates the ESP32 so the whole UI still works.
+
+
+
+AUTOMATION
+
+- Auto Mode runs on the ESP32 (lights follow the LDR threshold), so it keeps working if the phone disconnects.
+
+- Show scene: an app-driven sequence cycling lights, turbines and pump, with a Stop button.
+
+
+
+VOICE
+
+- Mic button using SpeechRecognition/webkitSpeechRecognition, lang "en-IN", hidden if unsupported. Understand "street lights on", "night mode", "start pump", "turn off wind turbine", "all off", "show mode". Reply with speechSynthesis (en-IN), show the transcript, and handle mic-permission errors and the need for internet.
+
+
+
+PWA
+
+- manifest.webmanifest (name "SmartCity Control", short_name "SmartCity", standalone, start_url "/", theme colours from the logo, the icons above), a service worker caching the app shell for offline use, all assets bundled locally. Works over HTTPS.
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://smartcityhvm.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c6b870eb-4347-471a-afe8-8b74d34cd822).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +84,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
