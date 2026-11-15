@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner";
 import {
   Bluetooth, BluetoothOff, Building2, Droplets, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize,
+  Moon, Power, Radio, Sparkles, Sun, SunMedium, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
@@ -344,6 +344,13 @@ function Index() {
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/voice-agent"><Bot />Voice agent</Link></Button>
         </div>
         <Button variant="ghost" asChild className="glass-control h-12 w-full rounded-xl"><Link to="/esp32-code"><FileCode2 />ESP32 code</Link></Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/launch-video"><Film />Launch video</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/circuit-diagram"><CircuitBoard />Circuit diagram</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/heading-board/$board" params={{ board: "1" }}><Signpost />Heading Board 1</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/heading-board/$board" params={{ board: "2" }}><Signpost />Heading Board 2</Link></Button>
+        </div>
+        <Button variant="ghost" asChild className="glass-control h-12 w-full rounded-xl"><Link to="/game"><Gamepad2 />Smart City game</Link></Button>
 
         <SmartCityMedia />
 

@@ -9,13 +9,14 @@
     SL:1/0  street lights (white LEDs)      BL:1/0  building lights (yellow LEDs)
     GR:1/0  green LEDs                      RD:1/0  red beacons
     WT:1/0  wind turbine motor              HT:1/0  water turbine motor
-    PM:1/0  water pump                      AUTO:1/0  lights follow the LDR
-    THR:<0-4095> dark/light threshold       ALL:0   everything off
-    SCENE:day|night|eco|show                GET     send status now
+    AUTO:1/0  lights follow the LDR         THR:<0-4095>  dark/light threshold
+    ALL:0   everything off                  GET     send status now
+    SCENE:day|night|eco|show
 
   STATUS (sent about once a second and after every command):
-    ST:SL=1,BL=0,GR=1,RD=0,WT=1,HT=0,PM=1,AUTO=1;LDR=732;SOL=4.62
+    ST:SL=1,BL=0,GR=1,RD=0,WT=1,HT=0,AUTO=1;LDR=732
 */
+
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -28,21 +29,19 @@
 const char* DEVICE_NAME = "HVM-SmartCity";
 
 // ---------- PIN MAP (change here if you wire differently) ----------
-const uint8_t PIN_SL = 16;    // street lights   (white LEDs)
-const uint8_t PIN_BL = 17;    // building lights (yellow LEDs)
-const uint8_t PIN_GR = 18;    // green LEDs
-const uint8_t PIN_RD = 19;    // red LEDs
-const uint8_t PIN_WT_A = 25;  // MX1508 IN1  -> wind turbine motor
-const uint8_t PIN_WT_B = 26;  // MX1508 IN2
-const uint8_t PIN_HT_A = 27;  // MX1508 IN3  -> water turbine motor
-const uint8_t PIN_HT_B = 33;  // MX1508 IN4
-const uint8_t PIN_PM   = 32;  // pump driver (needs a transistor, see notes)
-const uint8_t PIN_LDR  = 34 ;  // LDR divider (input only pin)
-const uint8_t PIN_SOL  = 35;  // solar panel through a 1k + 1k divider
-const float   SOL_DIVIDER = 2.0;   // 1k + 1k divider -> real voltage = measured x 2
+// Pins follow the team's circuit diagram (circuit_diagram.pdf)
+const uint8_t PIN_SL = 13;    // street lights   (white LED)
+const uint8_t PIN_BL = 12;    // building lights (yellow LED)
+const uint8_t PIN_GR = 14;    // green LED
+const uint8_t PIN_RD = 15;    // red LED
+const uint8_t PIN_WT_A = 27;  // motor driver IN1  -> wind turbine motor (OUT1/OUT2)
+const uint8_t PIN_WT_B = 26;  // motor driver IN2
+const uint8_t PIN_HT_A = 25;  // motor driver IN3  -> water turbine motor (OUT3/OUT4)
+const uint8_t PIN_HT_B = 33;  // motor driver IN4
+const uint8_t PIN_LDR  = 32;  // LDR junction: 3V3 -> LDR -> GPIO32 -> resistor -> GND
 
 // ---------- State ----------
-enum : uint8_t { B_SL = 1, B_BL = 2, B_GR = 4, B_RD = 8, B_WT = 16, B_HT = 32, B_PM = 64 };
+enum : uint8_t { B_SL = 1, B_BL = 2, B_GR = 4, B_RD = 8, B_WT = 16, B_HT = 32 };
 uint8_t state = 0;
 bool autoMode = false;
 int threshold = 1500;      // LDR reading below this = dark
@@ -54,10 +53,10 @@ uint32_t showT = 0;
 const uint8_t SHOW_STEPS[] = {
   B_WT,
   B_WT | B_GR,
-  B_WT | B_GR | B_HT | B_PM,
-  B_WT | B_GR | B_HT | B_PM | B_SL,
-  B_WT | B_GR | B_HT | B_PM | B_SL | B_BL,
-  B_WT | B_GR | B_HT | B_PM | B_SL | B_BL | B_RD
+  B_WT | B_GR | B_HT,
+  B_WT | B_GR | B_HT | B_SL,
+  B_WT | B_GR | B_HT | B_SL | B_BL,
+  B_WT | B_GR | B_HT | B_SL | B_BL | B_RD
 };
 
 BLEServer* pServer = nullptr;
@@ -89,7 +88,6 @@ void applyOutputs() {
   digitalWrite(PIN_RD, isOn(B_RD));
   digitalWrite(PIN_WT_A, isOn(B_WT)); digitalWrite(PIN_WT_B, LOW);
   digitalWrite(PIN_HT_A, isOn(B_HT)); digitalWrite(PIN_HT_B, LOW);
-  digitalWrite(PIN_PM, isOn(B_PM));
 }
 
 int readLdr() {
@@ -98,17 +96,12 @@ int readLdr() {
   return (int)(s / 8);
 }
 
-float solarVolts() {
-  return analogReadMilliVolts(PIN_SOL) * SOL_DIVIDER / 1000.0f;
-}
-
 String statusLine() {
-  char b[120];
+  char b[100];
   snprintf(b, sizeof(b),
-           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,HT=%d,PM=%d,AUTO=%d;LDR=%d;SOL=%.2f\n",
+           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,HT=%d,AUTO=%d;LDR=%d\n",
            isOn(B_SL), isOn(B_BL), isOn(B_GR), isOn(B_RD),
-           isOn(B_WT), isOn(B_HT), isOn(B_PM), autoMode ? 1 : 0,
-           lastLdr, solarVolts());
+           isOn(B_WT), isOn(B_HT), autoMode ? 1 : 0, lastLdr);
   return String(b);
 }
 
@@ -142,15 +135,14 @@ void handleCommand(String s) {
   else if (k == "RD")   { setBit(B_RD, n != 0); }
   else if (k == "WT")   { setBit(B_WT, n != 0); }
   else if (k == "HT")   { setBit(B_HT, n != 0); }
-  else if (k == "PM")   { setBit(B_PM, n != 0); }
   else if (k == "AUTO") { autoMode = (n != 0); }
   else if (k == "THR")  { threshold = constrain(n, 0, 4095); }
   else if (k == "ALL")  { state = 0; autoMode = false; }
   else if (k == "SCENE") {
     autoMode = false;
-    if      (v == "DAY")   state = B_GR | B_WT | B_HT | B_PM;
+    if      (v == "DAY")   state = B_GR | B_WT | B_HT;
     else if (v == "NIGHT") state = B_SL | B_BL | B_RD | B_WT;
-    else if (v == "ECO")   state = B_SL | B_GR | B_WT | B_HT | B_PM;
+    else if (v == "ECO")   state = B_SL | B_GR | B_WT | B_HT;
     else if (v == "SHOW")  { state = 0; showOn = true; showStep = 0; showT = millis() - 900; }
   }
   Serial.print("CMD: "); Serial.println(s);
@@ -178,10 +170,9 @@ class ServerCallbacks : public BLEServerCallbacks {
 void setup() {
   Serial.begin(115200);
 
-  const uint8_t outs[] = { PIN_SL, PIN_BL, PIN_GR, PIN_RD, PIN_WT_A, PIN_WT_B, PIN_HT_A, PIN_HT_B, PIN_PM };
+  const uint8_t outs[] = { PIN_SL, PIN_BL, PIN_GR, PIN_RD, PIN_WT_A, PIN_WT_B, PIN_HT_A, PIN_HT_B };
   for (uint8_t p : outs) { pinMode(p, OUTPUT); digitalWrite(p, LOW); }
   analogSetPinAttenuation(PIN_LDR, ADC_11db);
-  analogSetPinAttenuation(PIN_SOL, ADC_11db);
   applyOutputs();
 
   BLEDevice::init(DEVICE_NAME);

@@ -10,18 +10,37 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CircuitDiagramRouteImport } from './routes/circuit-diagram'
 import { Route as Esp32CodeRouteImport } from './routes/esp32-code'
+import { Route as GameRouteImport } from './routes/game'
+import { Route as LaunchVideoRouteImport } from './routes/launch-video'
 import { Route as ModelRouteImport } from './routes/model'
 import { Route as VoiceAgentRouteImport } from './routes/voice-agent'
+import { Route as HeadingBoardBoardRouteImport } from './routes/heading-board.$board'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CircuitDiagramRoute = CircuitDiagramRouteImport.update({
+  id: '/circuit-diagram',
+  path: '/circuit-diagram',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Esp32CodeRoute = Esp32CodeRouteImport.update({
   id: '/esp32-code',
   path: '/esp32-code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GameRoute = GameRouteImport.update({
+  id: '/game',
+  path: '/game',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchVideoRoute = LaunchVideoRouteImport.update({
+  id: '/launch-video',
+  path: '/launch-video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ModelRoute = ModelRouteImport.update({
@@ -34,39 +53,85 @@ const VoiceAgentRoute = VoiceAgentRouteImport.update({
   path: '/voice-agent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HeadingBoardBoardRoute = HeadingBoardBoardRouteImport.update({
+  id: '/heading-board/$board',
+  path: '/heading-board/$board',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/circuit-diagram': typeof CircuitDiagramRoute
   '/esp32-code': typeof Esp32CodeRoute
+  '/game': typeof GameRoute
+  '/launch-video': typeof LaunchVideoRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
+  '/heading-board/$board': typeof HeadingBoardBoardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/circuit-diagram': typeof CircuitDiagramRoute
   '/esp32-code': typeof Esp32CodeRoute
+  '/game': typeof GameRoute
+  '/launch-video': typeof LaunchVideoRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
+  '/heading-board/$board': typeof HeadingBoardBoardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/circuit-diagram': typeof CircuitDiagramRoute
   '/esp32-code': typeof Esp32CodeRoute
+  '/game': typeof GameRoute
+  '/launch-video': typeof LaunchVideoRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
+  '/heading-board/$board': typeof HeadingBoardBoardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/esp32-code' | '/model' | '/voice-agent'
+  fullPaths:
+    | '/'
+    | '/circuit-diagram'
+    | '/esp32-code'
+    | '/game'
+    | '/launch-video'
+    | '/model'
+    | '/voice-agent'
+    | '/heading-board/$board'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/esp32-code' | '/model' | '/voice-agent'
-  id: '__root__' | '/' | '/esp32-code' | '/model' | '/voice-agent'
+  to:
+    | '/'
+    | '/circuit-diagram'
+    | '/esp32-code'
+    | '/game'
+    | '/launch-video'
+    | '/model'
+    | '/voice-agent'
+    | '/heading-board/$board'
+  id:
+    | '__root__'
+    | '/'
+    | '/circuit-diagram'
+    | '/esp32-code'
+    | '/game'
+    | '/launch-video'
+    | '/model'
+    | '/voice-agent'
+    | '/heading-board/$board'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CircuitDiagramRoute: typeof CircuitDiagramRoute
   Esp32CodeRoute: typeof Esp32CodeRoute
+  GameRoute: typeof GameRoute
+  LaunchVideoRoute: typeof LaunchVideoRoute
   ModelRoute: typeof ModelRoute
   VoiceAgentRoute: typeof VoiceAgentRoute
+  HeadingBoardBoardRoute: typeof HeadingBoardBoardRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -78,11 +143,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/circuit-diagram': {
+      id: '/circuit-diagram'
+      path: '/circuit-diagram'
+      fullPath: '/circuit-diagram'
+      preLoaderRoute: typeof CircuitDiagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/esp32-code': {
       id: '/esp32-code'
       path: '/esp32-code'
       fullPath: '/esp32-code'
       preLoaderRoute: typeof Esp32CodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/game': {
+      id: '/game'
+      path: '/game'
+      fullPath: '/game'
+      preLoaderRoute: typeof GameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch-video': {
+      id: '/launch-video'
+      path: '/launch-video'
+      fullPath: '/launch-video'
+      preLoaderRoute: typeof LaunchVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/model': {
@@ -99,14 +185,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VoiceAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/heading-board/$board': {
+      id: '/heading-board/$board'
+      path: '/heading-board/$board'
+      fullPath: '/heading-board/$board'
+      preLoaderRoute: typeof HeadingBoardBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CircuitDiagramRoute: CircuitDiagramRoute,
   Esp32CodeRoute: Esp32CodeRoute,
+  GameRoute: GameRoute,
+  LaunchVideoRoute: LaunchVideoRoute,
   ModelRoute: ModelRoute,
   VoiceAgentRoute: VoiceAgentRoute,
+  HeadingBoardBoardRoute: HeadingBoardBoardRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
