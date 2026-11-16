@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { THREE_R128_CDN, toStandaloneHtml } from "@/lib/standalone-download";
@@ -16,9 +15,38 @@ describe("project files on the website", () => {
     }
   });
 
-  it("serves the hydro dam template exactly as published", () => {
-    const html = readFileSync(file("hydro-dam-template/index.html"));
-    expect(createHash("sha256").update(html).digest("hex")).toBe("931d3eedb8aae4f732d4bfd6c6163cdd0d04c2b7c3dea9d87edfa2a4b16682a1");
+  it("lets every hydro dam size be edited, keeping pieces, steps and board scaling in sync", () => {
+    const html = readFileSync(file("hydro-dam-template/index.html"), "utf8");
+    document.body.innerHTML = html.slice(html.indexOf("<body>") + 6, html.lastIndexOf("<script>"));
+    new Function(html.slice(html.lastIndexOf("<script>") + 8, html.lastIndexOf("</script>")))();
+    const $ = (sel: string) => document.querySelector(sel) as HTMLInputElement;
+    const inputs = (key: string) => [...document.querySelectorAll<HTMLInputElement>(`#parts input[data-key="${key}"]`)];
+    const type = (el: HTMLInputElement, value: string) => { el.value = value; el.dispatchEvent(new Event("input", { bubbles: true })); };
+    const steps = () => $("#steps").textContent ?? "";
+
+    expect(document.querySelectorAll("#parts input[data-key]").length).toBe(25);
+    expect(steps()).toContain("cut a thermocol block 14.5 cm long, 2.2 cm wide and 2.4 cm high");
+
+    // edit the gate width: steps and the gate pieces follow, other sizes don't change
+    type(inputs("gateW")[0]!, "3");
+    expect(steps()).toContain("(3 cm × 1.6 cm each)");
+    expect([...document.querySelectorAll("#pieces svg")].map((svg) => svg.textContent).join("|")).toContain("3 cm × 1.6 cm");
+    expect(inputs("gateW")[0]!.classList.contains("edited")).toBe(true);
+
+    // a shared size (dam height) edited in one row updates the other rows
+    type(inputs("damH")[0]!, "3");
+    expect(inputs("damH").map((el) => el.value)).toEqual(["3", "3", "3"]);
+
+    // doubling the board doubles defaults and keeps edited sizes in proportion
+    type($("#board"), "220");
+    expect(inputs("gateW")[0]!.value).toBe("6");
+    expect(inputs("gateH")[0]!.value).toBe("3.2");
+    expect(steps()).toContain("29 cm long");
+
+    // reset returns to the defaults for the current board
+    $("#resetSizes").click();
+    expect(inputs("gateW")[0]!.value).toBe("4.8");
+    expect(inputs("gateW")[0]!.classList.contains("edited")).toBe(false);
   });
 
   it("turns the game and the 3D model into standalone downloads that load three.js r128 from the CDN", () => {

@@ -56,7 +56,19 @@ ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-wid
 .legend .glue::before{border-top:8px solid #e7ecef}
 .warn{color:#9a4b00;font-weight:600}
 .print-only{display:none}
+/* editable sizes in the parts list */
+.sizes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.sz{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--muted)}
+.sz input{font:600 14px var(--body);width:64px;padding:4px 6px;border:1.5px solid var(--line);border-radius:6px;color:var(--ink);background:#fff;font-variant-numeric:tabular-nums}
+.sz input:focus-visible{outline:3px solid #9fd0f0;outline-offset:1px;border-color:var(--water)}
+.sz input.edited{background:#fff4e2;border-color:#d9822b}
+.x{color:var(--muted)}
+.v{font-weight:600;color:var(--water);white-space:nowrap}
+.row-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.btn{font:600 14px var(--body);padding:8px 14px;border:1.5px solid var(--water);border-radius:7px;background:#fff;color:var(--water);cursor:pointer}
+.btn:focus-visible{outline:3px solid #9fd0f0;outline-offset:1px}
 @media print{
+  .sz input{border:none;padding:0;width:auto;max-width:48px;background:none}
   @page{size:A4 landscape;margin:10mm}
   body{background:#fff;padding:0}
   .no-print{display:none!important}
@@ -92,10 +104,14 @@ ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-wid
   </section>
 
   <section class="card">
-    <h2>Parts list</h2>
+    <div class="row-head">
+      <h2>Parts list</h2>
+      <button type="button" class="btn no-print" id="resetSizes">Reset sizes</button>
+    </div>
+    <p class="note no-print" style="margin-top:6px">Every size is editable (in cm). Change one and the cut-out pieces and the steps below update. Edited sizes are highlighted and keep their proportion when you change the base board length.</p>
     <div class="tbl" style="margin-top:10px">
       <table>
-        <thead><tr><th>#</th><th>Part</th><th>Qty</th><th>Size (L × W × H)</th><th>Material</th></tr></thead>
+        <thead><tr><th>#</th><th>Part</th><th>Qty</th><th>Size (cm)</th><th>Material</th></tr></thead>
         <tbody id="parts"></tbody>
       </table>
     </div>
@@ -103,15 +119,7 @@ ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-wid
 
   <section class="card">
     <h2>How to build it</h2>
-    <ol style="margin-top:10px">
-      <li><strong>Dam wall:</strong> cut a thermocol block to the wall size. Pin the two side-profile templates to its ends and sand the downstream face (the side away from the lake) down to the sloping line. Real gravity dams are thicker at the bottom, and judges notice that detail.</li>
-      <li><strong>Face and walkway:</strong> glue the printed front face onto the downstream side and the walkway strip on top. Paint the thermocol grey first if any edges show; use water-based paint only, since spray paint melts thermocol.</li>
-      <li><strong>Sluice gates:</strong> glue the four dark gate panels on the marked spots of the front face, along the bottom.</li>
-      <li><strong>Spillways:</strong> fold each chute along the dashed lines and glue it under its gate so it slopes down into the river. Brush on clear glue or a strip of blue cellophane for the rushing-water look.</li>
-      <li><strong>Control station:</strong> cut the platform from thermocol, then fold the two control house nets, glue the tabs inside, and stand them on the platform beside the dam.</li>
-      <li><strong>Water turbines:</strong> cut the two wheels from cardboard, push a toothpick axle through the centre, and fix one wheel on the shaft of the water turbine motor (driver pins IN3 and IN4, GPIO25 and GPIO33) so the app's Water Turbine switch spins it.</li>
-      <li><strong>Hide the wires:</strong> run the motor wires under the thermocol base through a small slit next to the turbine platform.</li>
-    </ol>
+    <ol style="margin-top:10px" id="steps"></ol>
   </section>
 
   <section class="card">
@@ -207,40 +215,91 @@ ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-wid
     return { w: W, h: Ht, g: g };
   }
 
-  function build(){
+  // ---------- sizes as variables ----------
+  // Each size (cm) has a default that follows the base board (and the river width for the dam).
+  // An edited size is stored as a ratio of its default, so it keeps its proportion when the board changes.
+  const DEFAULT = {
+    damBase: c => 2.2 * c.s, damTop: c => 1.2 * c.s, damH: c => 2.4 * c.s,
+    walkL: c => c.damL + 0.3 * c.s, walkW: c => 2.6 * c.s,
+    gateW: c => 2.4 * c.s * Math.min(c.k, 1.25), gateH: c => 1.6 * c.s,
+    chuteW: c => 2.3 * c.s * Math.min(c.k, 1.25), chuteL: c => 3.4 * c.s, chuteLip: c => 0.6 * c.s,
+    platL: c => 12 * c.s, platD: c => 4 * c.s, platH: c => 0.5 * c.s,
+    houseL: c => 3 * c.s, houseD: c => 2.2 * c.s, houseH: c => 1.2 * c.s,
+    tplL: c => 10 * c.s, tplD: c => 7 * c.s, tplH: c => 0.6 * c.s,
+    wheelD: c => 5.4 * c.s
+  };
+  const over = {};
+  let V = null, D = null;
+
+  function sizes(){
     const board = Math.min(300, Math.max(40, +$("board").value || 110));
     const s = board / BASE;
     const damLenInput = +$("damlen").value;
     const damL = (damLenInput > 0 ? damLenInput : 14.5 * s);   // cm, user's own river width wins
     const k = damL / (14.5 * s);                              // extra stretch when the river is wider than the scaled model
+    const c = { s: s, k: k, damL: damL };
+    const v = { s: s, damL: damL, gateGap: 3.4 * s * k }, d = { damL: 14.5 * s };
+    Object.keys(DEFAULT).forEach(key => { d[key] = DEFAULT[key](c); v[key] = over[key] ? d[key] * over[key] : d[key]; });
+    return { v: v, d: d };
+  }
+
+  // parts list: every dimension is an input bound to a size variable (shared sizes stay in sync)
+  const PARTS = [
+    ["Dam wall block", 1, [["damL","L"],["damBase","W"],["damH","H"]], "thermo", "Thermocol"],
+    ["Dam side profile (sanding guide)", 2, [["damBase","base"],["damTop","top"],["damH","height"]], "print", "Print"],
+    ["Dam front face", 1, [["damL","L"],["damH","H"]], "print", "Print, glue on"],
+    ["Top walkway", 1, [["walkL","L"],["walkW","W"]], "card", "Card, grey"],
+    ["Sluice gate panel", 4, [["gateW","W"],["gateH","H"]], "card", "Card, dark grey"],
+    ["Spillway chute", 4, [["chuteW","W"],["chuteL","L"],["chuteLip","wall"]], "print", "Print or card"],
+    ["Control platform", 1, [["platL","L"],["platD","W"],["platH","H"]], "thermo", "Thermocol"],
+    ["Control house (folded net)", 2, [["houseL","L"],["houseD","W"],["houseH","H"]], "print", "Print on card"],
+    ["Turbine platform", 1, [["tplL","L"],["tplD","W"],["tplH","H"]], "thermo", "Thermocol"],
+    ["Water turbine wheel", 2, [["wheelD","Ø"]], "card", "Card, white"]
+  ];
+  function renderParts(){
+    $("parts").innerHTML = PARTS.map((p, i) =>
+      "<tr><td>"+(i+1)+"</td><td>"+p[0]+"</td><td>"+p[1]+"</td><td><div class=\"sizes\">"+
+      p[2].map(dim => "<label class=\"sz\"><span>"+dim[1]+"</span><input data-key=\""+dim[0]+"\" type=\"number\" inputmode=\"decimal\" min=\"0.1\" max=\"500\" step=\"0.1\" aria-label=\""+p[0]+" "+dim[1]+" in cm\"></label>").join("<span class=\"x\">×</span>")+
+      "</div></td><td><span class=\"mat "+p[3]+"\">"+p[4]+"</span></td></tr>").join("");
+  }
+  function syncInputs(){
+    document.querySelectorAll("#parts input[data-key]").forEach(el => {
+      const key = el.dataset.key;
+      el.classList.toggle("edited", key === "damL" ? !!$("damlen").dataset.touched : !!over[key]);
+      if (el !== document.activeElement) el.value = r1(V[key]);
+    });
+  }
+
+  function renderSteps(){
+    const v = V, f = x => '<span class="v">' + r1(x) + ' cm</span>';
+    const steps = [
+      "<strong>Dam wall:</strong> cut a thermocol block " + f(v.damL) + " long, " + f(v.damBase) + " wide and " + f(v.damH) + " high. Pin the two side-profile templates to its ends and sand the downstream face (the side away from the lake) down to the sloping line, from " + f(v.damBase) + " thick at the bottom to " + f(v.damTop) + " at the top. Real gravity dams are thicker at the bottom, and judges notice that detail.",
+      "<strong>Face and walkway:</strong> glue the printed front face (" + f(v.damL) + " × " + f(v.damH) + ") onto the downstream side and the walkway strip (" + f(v.walkL) + " × " + f(v.walkW) + ") on top. Paint the thermocol grey first if any edges show; use water-based paint only, since spray paint melts thermocol.",
+      "<strong>Sluice gates:</strong> glue the four dark gate panels (" + f(v.gateW) + " × " + f(v.gateH) + " each) on the marked spots along the bottom of the front face, " + f(v.gateGap) + " apart centre to centre.",
+      "<strong>Spillways:</strong> fold each chute (" + f(v.chuteW) + " wide, " + f(v.chuteL) + " long, walls " + f(v.chuteLip) + " high) along the dashed lines and glue it under its gate so it slopes down into the river. Brush on clear glue or a strip of blue cellophane for the rushing-water look.",
+      "<strong>Control station:</strong> cut the platform (" + f(v.platL) + " × " + f(v.platD) + ", " + f(v.platH) + " thick) from thermocol, then fold the two control house nets (each " + f(v.houseL) + " × " + f(v.houseD) + " × " + f(v.houseH) + " when folded), glue the tabs inside, and stand them on the blue marks on the platform beside the dam.",
+      "<strong>Water turbines:</strong> cut the turbine platform (" + f(v.tplL) + " × " + f(v.tplD) + ", " + f(v.tplH) + " thick) from thermocol and the two wheels (" + f(v.wheelD) + " across) from cardboard, push a toothpick axle through the centre, and fix one wheel on the shaft of the water turbine motor (driver pins IN3 and IN4, GPIO25 and GPIO33) so the app's Water Turbine switch spins it.",
+      "<strong>Hide the wires:</strong> run the motor wires under the thermocol base through a small slit next to the turbine platform."
+    ];
+    $("steps").innerHTML = steps.map(t => "<li>" + t + "</li>").join("");
+  }
+
+  function build(){
+    const r = sizes(); V = r.v; D = r.d;
+    const s = V.s;
     $("scaleOut").textContent = s.toFixed(2) + "×";
+    syncInputs();
+    renderSteps();
 
     const cm = v => v * 10;     // cm -> mm
-    // sizes in cm
-    const damH = 2.4 * s, damTop = 1.2 * s, damBase = 2.2 * s;
-    const walkL = damL + 0.3 * s, walkW = 2.6 * s;
-    const gateW = 2.4 * s * Math.min(k, 1.25), gateH = 1.6 * s, gateGap = 3.4 * s * k;
-    const chuteW = 2.3 * s * Math.min(k, 1.25), chuteL = 3.4 * s, chuteLip = 0.6 * s;
-    const platL = 12 * s, platD = 4 * s, platH = 0.5 * s;
-    const houseL = 3 * s, houseD = 2.2 * s, houseH = 1.2 * s;
-    const wheelD = 5.4 * s, tplL = 10 * s, tplD = 7 * s, tplH = 0.6 * s;
+    const damL = V.damL, damH = V.damH, damTop = V.damTop, damBase = V.damBase;
+    const walkL = V.walkL, walkW = V.walkW;
+    const gateW = V.gateW, gateH = V.gateH, gateGap = V.gateGap;
+    const chuteW = V.chuteW, chuteL = V.chuteL, chuteLip = V.chuteLip;
+    const platL = V.platL, platD = V.platD, platH = V.platH;
+    const houseL = V.houseL, houseD = V.houseD, houseH = V.houseH;
+    const wheelD = V.wheelD, tplL = V.tplL, tplD = V.tplD, tplH = V.tplH;
     const f = v => r1(v) + " cm";
-
-    // parts table
-    const parts = [
-      ["Dam wall block", 1, f(damL)+" × "+f(damBase)+" × "+f(damH), "thermo", "Thermocol"],
-      ["Dam side profile (sanding guide)", 2, "base "+f(damBase)+", top "+f(damTop)+", height "+f(damH), "print", "Print"],
-      ["Dam front face", 1, f(damL)+" × "+f(damH), "print", "Print, glue on"],
-      ["Top walkway", 1, f(walkL)+" × "+f(walkW), "card", "Card, grey"],
-      ["Sluice gate panel", 4, f(gateW)+" × "+f(gateH), "card", "Card, dark grey"],
-      ["Spillway chute", 4, f(chuteW)+" × "+f(chuteL), "print", "Print or card"],
-      ["Control platform", 1, f(platL)+" × "+f(platD)+" × "+f(platH), "thermo", "Thermocol"],
-      ["Control house (folded net)", 2, f(houseL)+" × "+f(houseD)+" × "+f(houseH), "print", "Print on card"],
-      ["Turbine platform", 1, f(tplL)+" × "+f(tplD)+" × "+f(tplH), "thermo", "Thermocol"],
-      ["Water turbine wheel", 2, "Ø "+f(wheelD), "card", "Card, white"]
-    ];
-    $("parts").innerHTML = parts.map((p, i) =>
-      "<tr><td>"+(i+1)+"</td><td>"+p[0]+"</td><td>"+p[1]+"</td><td class=\"num\">"+p[2]+"</td><td><span class=\"mat "+p[3]+"\">"+p[4]+"</span></td></tr>").join("");
 
     const out = [];
 
@@ -386,6 +445,22 @@ ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-wid
     build();
   });
   $("damlen").addEventListener("input", () => { $("damlen").dataset.touched = "1"; build(); });
+  $("parts").addEventListener("input", e => {
+    const el = e.target, key = el.dataset && el.dataset.key, val = +el.value;
+    if (!key || !(val >= 0.1 && val <= 500)) return;          // ignore half-typed or out-of-range values
+    if (key === "damL") { $("damlen").value = val; $("damlen").dataset.touched = "1"; }
+    else over[key] = val / D[key];
+    build();
+  });
+  $("parts").addEventListener("change", e => { if (e.target.dataset && e.target.dataset.key) e.target.value = r1(V[e.target.dataset.key]); });
+  $("resetSizes").addEventListener("click", () => {
+    Object.keys(over).forEach(key => delete over[key]);
+    delete $("damlen").dataset.touched;
+    const b = +$("board").value;
+    $("damlen").value = r1(14.5 * (b >= 40 && b <= 300 ? b : BASE) / BASE);
+    build();
+  });
+  renderParts();
   build();
 })();
 </script>
