@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { composePartyMusic } from "@/lib/ai-party-music.functions";
+import { SunoPromptPanel } from "@/components/suno-prompt-panel";
 import {
   buildMinuteSong,
   composeBuiltInMotif,
@@ -121,7 +122,7 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Create a 1-minute party song. The robot plays it on its buzzer while the city's lights flash to the beat, then everything goes back to how it was.
+        Describe the mood, then make a full song with Suno for the karaoke speaker, or a 1-minute tune the robot plays on its buzzer while the city's lights flash to the beat.
       </p>
       <label htmlFor="party-music-mood" className="sr-only">Describe the party music</label>
       <Textarea
@@ -133,6 +134,8 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
         onChange={(event) => setDescription(event.target.value)}
         className="glass-control resize-none"
       />
+      <SunoPromptPanel mood={description} />
+      <p className="pt-1 text-sm font-semibold">Buzzer tune for the robot</p>
       <div className="grid grid-cols-[1fr_auto] gap-2">
         <Button onClick={() => { void composeWithAI(); }} disabled={busy !== null || partyOn} className="h-11 rounded-xl">
           {busy === "composing" ? <Loader2 className="animate-spin" /> : <WandSparkles />}
