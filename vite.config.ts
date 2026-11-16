@@ -26,7 +26,7 @@ export default defineConfig({
           globDirectory: ".output/public",
           globPatterns: ["**/*.{js,css,png,svg,webmanifest,woff2}"],
           // Standalone 3D model, game and heading-board pages load their own large scripts on demand.
-          globIgnores: ["smart-city-model/**", "smart-city-game/**", "heading-boards/**"],
+          globIgnores: ["smart-city-model/**", "smart-city-game/**", "heading-boards/**", "circuit-diagram/**"],
           navigateFallback: null,
           cleanupOutdatedCaches: true,
           runtimeCaching: [

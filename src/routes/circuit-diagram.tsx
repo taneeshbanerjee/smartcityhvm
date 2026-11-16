@@ -1,8 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Expand } from "lucide-react";
+import { ArrowLeft, Download, Expand, ImageDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const diagramUrl = "/circuit-diagram/circuit_diagram.pdf";
+
+// Each PDF page is also served as an image so the diagram previews on every browser
+// (mobile browsers often can't show a PDF inside a page).
+const PAGES = [
+  { n: 1, title: "Lights: white, yellow, green and red LEDs", pins: "D13, D12, D14, D15 and GND" },
+  { n: 2, title: "Motors on the L298N motor driver", pins: "OUT1–OUT4" },
+  { n: 3, title: "Motor driver inputs", pins: "IN1 D27, IN2 D26, IN3 D25, IN4 D33" },
+  { n: 4, title: "Light sensor (LDR)", pins: "3V3, D32 and GND" },
+  { n: 5, title: "Party buzzer", pins: "D23 through the resistor, and GND" },
+] as const;
 
 export const Route = createFileRoute("/circuit-diagram")({
   head: () => ({
@@ -20,25 +30,45 @@ export const Route = createFileRoute("/circuit-diagram")({
 
 function CircuitDiagramPage() {
   return (
-    <main className="flex h-[calc(100dvh-4rem)] min-h-[32rem] flex-col bg-background text-foreground">
-      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
         <Button variant="outline" size="icon" asChild>
           <Link to="/" aria-label="Back to Smart City Control"><ArrowLeft /></Link>
         </Button>
         <h1 className="min-w-0 flex-1 truncate font-display font-semibold">Circuit Diagram</h1>
-        <Button variant="outline" size="sm" asChild>
-          <a href={diagramUrl} target="_blank" rel="noreferrer"><Expand /> Open separately</a>
-        </Button>
         <Button variant="outline" size="icon" asChild>
-          <a href={diagramUrl} download="circuit_diagram.pdf" aria-label="Download circuit diagram"><Download /></a>
+          <a href={diagramUrl} target="_blank" rel="noreferrer" aria-label="Open the PDF separately"><Expand /></a>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <a href={diagramUrl} download="circuit_diagram.pdf"><Download /> Download PDF</a>
         </Button>
       </header>
-      <object data={diagramUrl} type="application/pdf" aria-label="Smart City circuit diagram" className="min-h-0 w-full flex-1">
-        <div className="flex flex-col items-start gap-3 p-4 text-sm text-muted-foreground">
-          <p>This browser can't show the PDF here. Open it separately or download it.</p>
-          <Button variant="outline" asChild><a href={diagramUrl} target="_blank" rel="noreferrer"><Expand /> Open circuit diagram</a></Button>
-        </div>
-      </object>
+      <section className="space-y-6 p-4">
+        <p className="text-sm text-muted-foreground">{PAGES.length} pages. Pins match the ESP32 code on this website.</p>
+        {PAGES.map((page) => (
+          <figure key={page.n} className="space-y-2">
+            <img
+              src={`/circuit-diagram/page-${page.n}.webp`}
+              alt={`Circuit diagram page ${page.n}: ${page.title} (${page.pins})`}
+              width={2000}
+              height={1125}
+              loading={page.n === 1 ? "eager" : "lazy"}
+              className="h-auto w-full rounded-xl border border-border bg-white"
+            />
+            <figcaption className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm">
+                <span className="font-semibold">Page {page.n}: {page.title}</span>
+                <span className="text-muted-foreground"> · {page.pins}</span>
+              </span>
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/circuit-diagram/page-${page.n}.png`} download={`circuit_diagram_page_${page.n}.png`}>
+                  <ImageDown /> Download page {page.n}
+                </a>
+              </Button>
+            </figcaption>
+          </figure>
+        ))}
+      </section>
     </main>
   );
 }

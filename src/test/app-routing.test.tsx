@@ -26,7 +26,7 @@ describe("App routing", () => {
   it("matches the launch video, circuit diagram, game, and heading board pages", () => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
 
-    for (const path of ["/launch-video", "/circuit-diagram", "/game", "/heading-board"]) {
+    for (const path of ["/launch-video", "/circuit-diagram", "/game", "/heading-board", "/model", "/esp32-code"]) {
       expect(router.matchRoutes(path).at(-1)?.routeId).not.toBe(rootRouteId);
     }
   });
