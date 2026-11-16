@@ -20,7 +20,7 @@ UI
 
 - Connection chip: Disconnected / Connecting / Connected with the device name.
 
-- Cards: Lighting (Street lights, Building lights, Green status LEDs, Red beacons), Power (Wind turbine motor, Water turbine motor, Water pump, Solar), Sensors (LDR day/night gauge, solar voltage gauge), Scenes (Day, Night, Eco, Show), Auto Mode toggle with a light-threshold slider, and a red "ALL OFF" button.
+- Cards: Lighting (Street lights, Building lights, Green status LEDs, Red beacons), Power (Wind turbine motor, Water turbine motor), Sensors (LDR day/night gauge), Scenes (Day, Night, Eco, Show), AI Control Plan, Party Mode, Auto Mode toggle with a light-threshold slider, and a red "ALL OFF" button.
 
 - Activity log drawer with recent commands and replies. Footer: "Project by " + ORG_NAME.
 
@@ -32,9 +32,9 @@ BLUETOOTH (Nordic UART service)
 
 - Connect button (user gesture) uses requestDevice with filters namePrefix "HVM-SmartCity" and that service, with optionalServices set. Offer "Show all devices" as a fallback.
 
-- Send newline-terminated commands: SL:1/0, BL:1/0, GR:1/0, RD:1/0, WT:1/0, HT:1/0, PM:1/0, AUTO:1/0, THR:<0-4095>, ALL:0, SCENE:day|night|eco|show, GET.
+- Send newline-terminated commands: SL:1/0, BL:1/0, GR:1/0, RD:1/0, WT:1/0, HT:1/0, AUTO:1/0, THR:<0-4095>, ALL:0, SCENE:day|night|eco|show, GET, and for party mode MB:<bpm>, MA:<notes>, MP:1/0.
 
-- Receive status lines like ST:SL=1,BL=0,GR=1,RD=0,WT=1,HT=0,PM=1,AUTO=1;LDR=732;SOL=4.62. Buffer incoming chunks until a newline, then parse; ignore malformed lines safely.
+- Receive status lines like ST:SL=1,BL=0,GR=1,RD=0,WT=1,HT=0,AUTO=1,MU=0;LDR=732 (MU=1 while party music plays). Buffer incoming chunks until a newline, then parse; ignore malformed lines safely.
 
 - Use a sequential write queue (avoid "GATT operation already in progress"), prefer writeValueWithoutResponse, fall back to writeValue.
 
@@ -48,19 +48,36 @@ AUTOMATION
 
 - Auto Mode runs on the ESP32 (lights follow the LDR threshold), so it keeps working if the phone disconnects.
 
-- Show scene: an app-driven sequence cycling lights, turbines and pump, with a Stop button.
+- Show scene: an app-driven sequence cycling lights and turbines, with a Stop button.
+
+- Party mode: a 1-minute song (composed by Lovable AI, or the built-in composer) plays on the ESP32 buzzer while the lights change every bar; the city is restored afterwards.
 
 
 
 VOICE
 
-- Mic button using SpeechRecognition/webkitSpeechRecognition, lang "en-IN", hidden if unsupported. Understand "street lights on", "night mode", "start pump", "turn off wind turbine", "all off", "show mode". Reply with speechSynthesis (en-IN), show the transcript, and handle mic-permission errors and the need for internet.
+- Mic button using SpeechRecognition/webkitSpeechRecognition, lang "en-IN", hidden if unsupported. Understand "street lights on", "night mode", "start water turbine", "turn off wind turbine", "all off", "show mode". Reply with speechSynthesis (en-IN), show the transcript, and handle mic-permission errors and the need for internet.
 
 
 
 PWA
 
 - manifest.webmanifest (name "SmartCity Control", short_name "SmartCity", standalone, start_url "/", theme colours from the logo, the icons above), a service worker caching the app shell for offline use, all assets bundled locally. Works over HTTPS.
+
+## ESP32 wiring and firmware
+
+The firmware is `public/esp32-code/HVM_SmartCity_ESP32.ino` (also on the app's **ESP32 code** page). Board: **ESP32 Dev Module**, ESP32 Arduino core 2.0.x or 3.x; no extra libraries. Pins follow `circuit_diagram.pdf`:
+
+| Part | ESP32 pin |
+|---|---|
+| Street lights (white LED) | D13 |
+| Building lights (yellow LED) | D12 |
+| Green status LED | D14 |
+| Red beacon LED | D15 |
+| Wind turbine motor (L298N IN1 / IN2) | D27 / D26 |
+| Water turbine motor (L298N IN3 / IN4) | D25 / D33 |
+| LDR (3V3 → LDR → D32 → resistor → GND) | D32 |
+| Party buzzer (passive; + via 100 Ω) | D23 |
 
 This project was built with [Lovable](https://lovable.dev).
 
