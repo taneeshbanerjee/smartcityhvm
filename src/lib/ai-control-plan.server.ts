@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { Output, streamText } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
 import {
   normalizeControlPlan,
@@ -84,7 +84,8 @@ export async function generateControlPlanWithAI(description: string, apiKey: str
   });
 
   try {
-    const result = streamText({
+    // generateText (not streaming) so gateway errors keep their HTTP status, e.g. 429 or 402.
+    const result = await generateText({
       model: provider.responses(PLAN_MODEL),
       instructions: [
         "Create a preview-only control plan for the Hariyana Vidya Mandir smart-city model.",
@@ -106,12 +107,15 @@ export async function generateControlPlanWithAI(description: string, apiKey: str
       },
     });
 
-    const plan = normalizeControlPlan(await result.output);
+    const plan = normalizeControlPlan(result.output);
     if (!plan) {
       return { ok: false, status: null, error: "The generated plan was incomplete. Please refine the request and try again." };
     }
     return { ok: true, plan };
   } catch (error) {
+    if (NoObjectGeneratedError.isInstance(error)) {
+      return { ok: false, status: null, error: "The generated plan was incomplete. Please refine the request and try again." };
+    }
     return errorResult(error);
   }
 }

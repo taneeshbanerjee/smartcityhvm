@@ -10,7 +10,7 @@ const planRequestSchema = z.object({ description: z.string() }).strict().transfo
 });
 
 export const generateAIControlPlan = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => planRequestSchema.parse(input))
+  .validator((input: unknown) => planRequestSchema.parse(input))
   .handler(async ({ data }) => {
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) {
