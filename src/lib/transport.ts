@@ -141,7 +141,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
     }
     manual = true;
     device.removeEventListener("gattserverdisconnected", onGattDisconnected);
-    device.gatt?.connected && device.gatt.disconnect();
+    if (device.gatt?.connected) device.gatt.disconnect();
     update({ stage: "Reconnect failed" });
     h.onDisconnect(false);
   };
@@ -152,7 +152,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
     const failedDiagnostics = { ...diagnostics };
     manual = true;
     device.removeEventListener("gattserverdisconnected", onGattDisconnected);
-    device.gatt?.connected && device.gatt.disconnect();
+    if (device.gatt?.connected) device.gatt.disconnect();
     // Keep the failed discovery result visible after cleanup.
     update({ ...failedDiagnostics, stage: "Connection failed" });
     throw error;
@@ -184,7 +184,7 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
       device.removeEventListener("gattserverdisconnected", onGattDisconnected);
       notifyChar?.removeEventListener("characteristicvaluechanged", onNotify);
       notifyChar = null;
-      device.gatt?.connected && device.gatt.disconnect();
+      if (device.gatt?.connected) device.gatt.disconnect();
       update({ stage: "Disconnected", service: "disconnected", write: "disconnected", notify: "disconnected", notifications: "disconnected" });
       h.onDisconnect(false);
     },
@@ -198,6 +198,37 @@ export function connectDemo(h: Handlers): Transport {
   let thr = 1500;
   let t = 0;
   let closed = false;
+  // party mode, simulated like the firmware: lights change every bar, then the city is restored
+  const PARTY = [
+    { SL: true, BL: false, GR: false, RD: true }, { SL: false, BL: true, GR: true, RD: false },
+    { SL: true, BL: true, GR: false, RD: true }, { SL: false, BL: false, GR: true, RD: true },
+  ];
+  let bpm = 120;
+  let songSixteenths = 0;
+  let party: { timer: ReturnType<typeof setInterval>; saved: CityState } | null = null;
+  const stopParty = (restore: boolean) => {
+    if (!party) return;
+    clearInterval(party.timer);
+    if (restore) Object.assign(s, { ...party.saved, LDR: s.LDR });
+    party = null;
+    s.MU = false;
+  };
+  const startParty = () => {
+    if (!songSixteenths) return;
+    stopParty(true);
+    const saved = { ...s };
+    const bars = Math.ceil(songSixteenths / 16);
+    let bar = 0;
+    const step = () => {
+      if (closed) return;
+      if (bar >= bars) { stopParty(true); h.onLine(formatStatus(s)); return; }
+      Object.assign(s, PARTY[bar % PARTY.length], { WT: true, HT: true, AUTO: false, MU: true });
+      bar++;
+      h.onLine(formatStatus(s));
+    };
+    party = { timer: setInterval(step, (16 * 15000) / bpm), saved };
+    step();
+  };
   const emit = () => setTimeout(() => { if (!closed) h.onLine(formatStatus(s)); }, 120);
   const applyAuto = () => {
     if (s.AUTO) { const dark = (s.LDR ?? 0) < thr; s.SL = dark; s.BL = dark; }
@@ -214,6 +245,11 @@ export function connectDemo(h: Handlers): Transport {
     async send(cmd) {
       if (closed) throw new Error("Not connected");
       const [k = "", v = ""] = cmd.split(":");
+      if (k === "MB") { stopParty(true); bpm = Math.min(180, Math.max(60, Number(v) || 120)); songSixteenths = 0; }
+      else if (k === "MA") { for (let i = 0; i + 3 < v.length; i += 4) songSixteenths += parseInt(v.slice(i + 2, i + 4), 16) || 0; return; }
+      else if (k === "MP") { if (v === "1") startParty(); else stopParty(true); }
+      else if (k !== "GET") stopParty(true);
+      if (k === "MB" || k === "MP") { setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60); emit(); return; }
       if (k in s && (v === "0" || v === "1")) (s as any)[k] = v === "1";
       else if (k === "THR") thr = Number(v) || 0;
       else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT", "HT"] as const).forEach((x) => (s[x] = false));
@@ -233,6 +269,7 @@ export function connectDemo(h: Handlers): Transport {
     },
     disconnect() {
       closed = true;
+      stopParty(false);
       clearInterval(timer);
       h.onDiagnostics?.({ ...initialDiagnostics, stage: "Demo stopped" });
       h.onDisconnect(false);

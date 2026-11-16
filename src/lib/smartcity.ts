@@ -10,15 +10,17 @@ export const SWITCH_KEYS: SwitchKey[] = ["SL", "BL", "GR", "RD", "WT", "HT"];
 export interface CityState {
   SL: boolean; BL: boolean; GR: boolean; RD: boolean;
   WT: boolean; HT: boolean; AUTO: boolean;
+  /** Party music playing on the ESP32 buzzer. */
+  MU: boolean;
   LDR: number | null;
 }
 
 export const initialState: CityState = {
-  SL: false, BL: false, GR: false, RD: false, WT: false, HT: false, AUTO: false,
+  SL: false, BL: false, GR: false, RD: false, WT: false, HT: false, AUTO: false, MU: false,
   LDR: null,
 };
 
-/** Parse "ST:SL=1,BL=0,...,AUTO=1;LDR=732". Returns null if malformed. */
+/** Parse "ST:SL=1,BL=0,...,AUTO=1,MU=0;LDR=732". Returns null if malformed. */
 export function parseStatus(line: string): Partial<CityState> | null {
   const t = line.trim();
   if (!t.startsWith("ST:")) return null;
@@ -30,7 +32,7 @@ export function parseStatus(line: string): Partial<CityState> | null {
     if (!k || v === undefined) continue;
     const key = k.trim().toUpperCase();
     const val = v.trim();
-    if ((SWITCH_KEYS as string[]).includes(key) || key === "AUTO") {
+    if ((SWITCH_KEYS as string[]).includes(key) || key === "AUTO" || key === "MU") {
       if (val !== "0" && val !== "1") continue;
       (out as Record<string, boolean>)[key] = val === "1";
       any = true;
@@ -46,7 +48,7 @@ export function parseStatus(line: string): Partial<CityState> | null {
 
 export function formatStatus(s: CityState): string {
   const b = (x: boolean) => (x ? 1 : 0);
-  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},HT=${b(s.HT)},AUTO=${b(s.AUTO)};LDR=${Math.round(s.LDR ?? 0)}`;
+  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},HT=${b(s.HT)},AUTO=${b(s.AUTO)},MU=${b(s.MU)};LDR=${Math.round(s.LDR ?? 0)}`;
 }
 
 /** Map spoken phrase to commands. Returns null if not understood. */

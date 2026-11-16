@@ -26,7 +26,7 @@ const commands = [
   ],
   [
     "ALL:0",
-    "Turn off all seven outputs. Does not disable Auto; Auto may turn lights back on. The app also stops its Show sequence.",
+    "Turn off all six outputs and disable Auto. The app also stops its Show sequence.",
   ],
   ["SCENE:day", "Request Day scene."],
   ["SCENE:night", "Request Night scene."],
@@ -35,7 +35,10 @@ const commands = [
     "SCENE:show",
     "Request Show scene. The app then cycles individual commands every 1.5 seconds; Stop show ends the cycle without turning outputs off.",
   ],
-  ["GET", "Request current output states, Auto state, and LDR reading."],
+  ["MB:120", "Start a new party song at this tempo (60–180 BPM)."],
+  ["MA:3C044004", "Add up to 15 song notes, 4 hex digits each: MIDI note (00 = rest), then length in 16th notes."],
+  ["MP:1 / MP:0", "Start / stop party mode: the buzzer plays the song and the lights flash each bar, then the city is restored."],
+  ["GET", "Request current output states, Auto state, party music state, and LDR reading."],
 ];
 
 export function TestingTools({
@@ -107,10 +110,10 @@ export function TestingTools({
           <section className="space-y-2 border-t border-border pt-4">
             <h3 className="font-semibold">Device replies</h3>
             <code className="block break-all rounded-md bg-muted p-3 text-xs">
-              ST:SL=1,BL=0,GR=0,RD=0,WT=0,HT=0,AUTO=0;LDR=732
+              ST:SL=1,BL=0,GR=0,RD=0,WT=0,HT=0,AUTO=0,MU=0;LDR=732
             </code>
             <p className="text-sm text-muted-foreground">
-              Output and Auto values: 0 = off, 1 = on. LDR: sensor reading. Other
+              Output, Auto and MU (party music) values: 0 = off, 1 = on. LDR: sensor reading. Other
               replies, including OK acknowledgements, appear in the Activity log.
             </p>
             <p className="text-sm text-muted-foreground">

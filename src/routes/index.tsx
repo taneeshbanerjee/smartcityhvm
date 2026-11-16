@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner";
 import {
   Bluetooth, BluetoothOff, Building2, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost,
+  Moon, Power, Radio, Sparkles, Sun, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost, PartyPopper,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SmartCityMedia } from "@/components/smart-city-media";
 import { AIControlPlanPanel } from "@/components/ai-control-plan-panel";
+import { PartyModePanel } from "@/components/party-mode-panel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -196,6 +197,13 @@ function Index() {
   const applyPlan = async (commands: string[]) => {
     stopShow();
     for (const command of commands) await send(command);
+  };
+  // Like applyPlan, but stops at the first command that fails so a half-sent song never starts.
+  const sendSong = async (commands: string[]) => {
+    stopShow();
+    const t = tRef.current;
+    if (!t) throw new Error("Not connected");
+    for (const command of commands) { log("tx", command); await t.send(command); }
   };
   const toggle = (k: SwitchKey | "AUTO") => send(`${k}:${state[k] ? 0 : 1}`);
   const openModelFullscreen = async () => {
@@ -399,6 +407,10 @@ function Index() {
 
         <Card title="AI Control Plan" icon={<Bot size={18} />}>
           <AIControlPlanPanel state={state} connected={!disabled} onApply={applyPlan} />
+        </Card>
+
+        <Card title="Party Mode" icon={<PartyPopper size={18} />}>
+          <PartyModePanel connected={!disabled} demo={demo} musicPlaying={state.MU} onStart={sendSong} onStop={() => send("MP:0")} />
         </Card>
 
         <Card title="Auto Mode" icon={<Power size={18} />}>
