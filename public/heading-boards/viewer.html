@@ -19,7 +19,6 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 <div id="hint" hidden>Drag to rotate · Pinch or scroll to zoom</div>
 <script src="/smart-city-model/three.min.js"></script>
 <script src="/heading-boards/vendor/fflate.min.js"></script>
-<script src="/heading-boards/vendor/GLTFLoader.js"></script>
 <script src="/heading-boards/vendor/3MFLoader.js"></script>
 <script src="/heading-boards/vendor/OrbitControls.js"></script>
 <script>
@@ -68,9 +67,7 @@ function place(obj){
 function load(d){
   show('Loading heading board…');
   try{
-    if(d.format==='glb'){
-      new THREE.GLTFLoader().parse(d.data,'',function(g){place(g.scene)},function(e){fail(e)});
-    }else if(d.format==='3mf'){
+    if(d.format==='3mf'){
       place(new THREE.ThreeMFLoader().parse(d.data));
     }else fail(new Error('Unsupported format'));
   }catch(e){fail(e)}

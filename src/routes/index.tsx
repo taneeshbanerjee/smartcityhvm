@@ -347,10 +347,9 @@ function Index() {
         <div className="grid grid-cols-2 gap-2">
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/launch-video"><Film />Launch video</Link></Button>
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/circuit-diagram"><CircuitBoard />Circuit diagram</Link></Button>
-          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/heading-board/$board" params={{ board: "1" }}><Signpost />Heading Board 1</Link></Button>
-          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/heading-board/$board" params={{ board: "2" }}><Signpost />Heading Board 2</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/heading-board"><Signpost />Heading Board</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/game"><Gamepad2 />Smart City game</Link></Button>
         </div>
-        <Button variant="ghost" asChild className="glass-control h-12 w-full rounded-xl"><Link to="/game"><Gamepad2 />Smart City game</Link></Button>
 
         <SmartCityMedia />
 
