@@ -12,6 +12,7 @@ const PAGES = [
   { n: 3, title: "Motor driver inputs", pins: "IN1 D27, IN2 D26, IN3 D25, IN4 D33" },
   { n: 4, title: "Light sensor (LDR)", pins: "3V3, D32 and GND" },
   { n: 5, title: "Party buzzer", pins: "D23 through the resistor, and GND" },
+  { n: 6, title: "Microphone, speaker amplifier, OLED display and LED", pins: "INMP441, MAX98357A with 2 W speaker, 0.96\" OLED, 5 mm LED" },
 ] as const;
 
 export const Route = createFileRoute("/circuit-diagram")({
@@ -40,11 +41,13 @@ function CircuitDiagramPage() {
           <a href={diagramUrl} target="_blank" rel="noreferrer" aria-label="Open the PDF separately"><Expand /></a>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <a href={diagramUrl} download="circuit_diagram.pdf"><Download /> Download PDF</a>
+          <a href={diagramUrl} download="circuit_diagram.pdf" aria-label={`Download all ${PAGES.length} pages as one PDF`}><Download /> All pages (PDF)</a>
         </Button>
       </header>
       <section className="space-y-6 p-4">
-        <p className="text-sm text-muted-foreground">{PAGES.length} pages. Pins match the ESP32 code on this website.</p>
+        <p className="text-sm text-muted-foreground">
+          {PAGES.length} pages. "All pages (PDF)" downloads every page together in one file. Pages 1–5 match the ESP32 code on this website.
+        </p>
         {PAGES.map((page) => (
           <figure key={page.n} className="space-y-2">
             <img
