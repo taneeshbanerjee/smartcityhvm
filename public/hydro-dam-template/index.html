@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hydro Dam Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: one control strip, then the parts list, then actual-size pieces that flow onto A4 landscape sheets */
+  --paper:#f6f8f9;
+  --sheet:#ffffff;
+  --ink:#16252e;
+  --muted:#5a6b75;
+  --water:#1677b8;
+  --concrete:#8c9aa3;
+  --line:#c9d3d9;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 var(--body);padding:24px 16px 48px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+h1,h2{font-family:var(--display);letter-spacing:.02em;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:38px}
+h2{font-size:24px}
+.sub{color:var(--muted);margin:6px 0 0;max-width:68ch}
+.card{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:18px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-weight:600;font-size:13px}
+.field input,.field select{font:600 16px var(--body);padding:8px 10px;border:1.5px solid var(--water);border-radius:7px;width:130px;background:#fff;color:var(--ink)}
+.field input:focus-visible,.field select:focus-visible{outline:3px solid #9fd0f0;outline-offset:1px}
+.note{font-size:13px;color:var(--muted);max-width:60ch;margin:0}
+.scale{font-variant-numeric:tabular-nums;font-weight:600;color:var(--water)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.num{white-space:nowrap}
+.mat{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.mat.thermo{background:#eef6fb;border-color:#b9dbef}
+.mat.card{background:#f3f1ec;border-color:#ddd5c4}
+.mat.print{background:#eef3ef;border-color:#c3dac9}
+ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-width:75ch}
+.pieces{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
+.piece{background:#fff;border:1px dashed var(--line);padding:6px;break-inside:avoid;page-break-inside:avoid}
+.piece svg{display:block;max-width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:22px;height:0;border-top:2px solid var(--ink);vertical-align:middle;margin-right:6px}
+.legend .fold::before{border-top:2px dashed var(--water)}
+.legend .glue::before{border-top:8px solid #e7ecef}
+.warn{color:#9a4b00;font-weight:600}
+.print-only{display:none}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff;padding:0}
+  .no-print{display:none!important}
+  .card{border:none;padding:0}
+  .print-only{display:block}
+  .piece svg{max-width:none}
+  .wrap{gap:10px;max-width:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Hydroelectric Dam – Build Template</h1>
+    <p class="sub">Hariyana Vidya Mandir · Smart City model. Cut lines, fold lines and sizes for the dam wall, its four sluice gates, the spillways, the control station and the two water turbine wheels. Every size scales with your base board.</p>
+  </header>
+
+  <section class="card no-print">
+    <div class="controls">
+      <div class="field">
+        <label for="board">Base board length (cm)</label>
+        <input id="board" type="number" inputmode="decimal" min="40" max="300" step="1" value="110">
+      </div>
+      <div class="field">
+        <label for="damlen">Dam wall length (cm)</label>
+        <input id="damlen" type="number" inputmode="decimal" min="6" max="60" step="0.5" value="14.5">
+      </div>
+      <p class="note">Scale <span class="scale" id="scaleOut">1.00×</span> of the 110 cm digital model. Measure your river where the dam crosses it and type that into "Dam wall length"; the gates and spillways spread to match.</p>
+    </div>
+    <p class="note" style="margin-top:12px"><strong>To print at true size:</strong> open this page in Chrome or Edge on a computer, press Ctrl+P, choose A4 landscape, set Scale to 100% (or "Actual size"), and turn off "Fit to page". Check the 5 cm test bar with a ruler before cutting.</p>
+  </section>
+
+  <section class="card">
+    <h2>Parts list</h2>
+    <div class="tbl" style="margin-top:10px">
+      <table>
+        <thead><tr><th>#</th><th>Part</th><th>Qty</th><th>Size (L × W × H)</th><th>Material</th></tr></thead>
+        <tbody id="parts"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>How to build it</h2>
+    <ol style="margin-top:10px">
+      <li><strong>Dam wall:</strong> cut a thermocol block to the wall size. Pin the two side-profile templates to its ends and sand the downstream face (the side away from the lake) down to the sloping line. Real gravity dams are thicker at the bottom, and judges notice that detail.</li>
+      <li><strong>Face and walkway:</strong> glue the printed front face onto the downstream side and the walkway strip on top. Paint the thermocol grey first if any edges show; use water-based paint only, since spray paint melts thermocol.</li>
+      <li><strong>Sluice gates:</strong> glue the four dark gate panels on the marked spots of the front face, along the bottom.</li>
+      <li><strong>Spillways:</strong> fold each chute along the dashed lines and glue it under its gate so it slopes down into the river. Brush on clear glue or a strip of blue cellophane for the rushing-water look.</li>
+      <li><strong>Control station:</strong> cut the platform from thermocol, then fold the two control house nets, glue the tabs inside, and stand them on the platform beside the dam.</li>
+      <li><strong>Water turbines:</strong> cut the two wheels from cardboard, push a toothpick axle through the centre, and fix one wheel on the shaft of the water turbine motor (driver pins IN3 and IN4, GPIO25 and GPIO33) so the app's Water Turbine switch spins it.</li>
+      <li><strong>Hide the wires:</strong> run the motor wires under the thermocol base through a small slit next to the turbine platform.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Cut-out pieces (actual size)</h2>
+    <div class="legend no-print" style="margin:8px 0 14px">
+      <span>Cut line</span><span class="fold">Fold line</span><span class="glue">Glue tab</span>
+    </div>
+    <p class="note warn no-print" id="wideWarn" hidden>Some pieces are wider than an A4 landscape sheet (27 cm). Print those on two sheets and join them with tape at the middle mark.</p>
+    <div class="pieces" id="pieces" style="margin-top:6px"></div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const BASE = 110;            // digital model board length the sizes come from
+  const PAGE_W_MM = 277;       // A4 landscape printable width at 10 mm margins
+  const INK = "#16252e", FOLD = "#1677b8", GLUE = "#e7ecef", CON = "#cfd6db", DARK = "#37474f", WATER = "#bfe3f5";
+  const $ = id => document.getElementById(id);
+  const r1 = v => Math.round(v * 10) / 10;
+
+  function svgEl(wMM, hMM, inner){
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + wMM.toFixed(1) + 'mm" height="' + hMM.toFixed(1) +
+      'mm" viewBox="0 0 ' + wMM.toFixed(2) + ' ' + hMM.toFixed(2) + '" font-family="IBM Plex Sans,Arial,sans-serif">' + inner + '</svg>';
+  }
+  function rect(x,y,w,h,opt){
+    opt = opt || {};
+    return '<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+w.toFixed(2)+'" height="'+h.toFixed(2)+
+      '" fill="'+(opt.fill||"none")+'" stroke="'+(opt.stroke||INK)+'" stroke-width="'+(opt.sw||0.35)+'"'+
+      (opt.dash?' stroke-dasharray="'+opt.dash+'"':'')+'/>';
+  }
+  function line(x1,y1,x2,y2,opt){
+    opt = opt || {};
+    return '<line x1="'+x1.toFixed(2)+'" y1="'+y1.toFixed(2)+'" x2="'+x2.toFixed(2)+'" y2="'+y2.toFixed(2)+
+      '" stroke="'+(opt.stroke||INK)+'" stroke-width="'+(opt.sw||0.35)+'"'+(opt.dash?' stroke-dasharray="'+opt.dash+'"':'')+'/>';
+  }
+  function text(x,y,s,opt){
+    opt = opt || {};
+    return '<text x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" font-size="'+(opt.size||2.6)+'" fill="'+(opt.fill||INK)+
+      '" text-anchor="'+(opt.anchor||"middle")+'" font-weight="'+(opt.weight||500)+'">'+s+'</text>';
+  }
+  function tab(x,y,w,h,side){
+    // trapezoid glue tab attached to an edge; side = top|bottom|left|right
+    const i = Math.min(w,h) * 0.3, pts = [];
+    if (side === "top")    pts.push([x,y+h],[x+i,y],[x+w-i,y],[x+w,y+h]);
+    if (side === "bottom") pts.push([x,y],[x+i,y+h],[x+w-i,y+h],[x+w,y]);
+    if (side === "left")   pts.push([x+w,y],[x,y+i],[x,y+h-i],[x+w,y+h]);
+    if (side === "right")  pts.push([x,y],[x+w,y+i],[x+w,y+h-i],[x,y+h]);
+    return '<polygon points="'+pts.map(p=>p[0].toFixed(2)+","+p[1].toFixed(2)).join(" ")+'" fill="'+GLUE+'" stroke="'+INK+'" stroke-width="0.35"/>';
+  }
+  const pad = 6, labelH = 7;
+
+  function titled(title, size, wMM, hMM, body){
+    // wraps a drawing with a title line and size line
+    const W = Math.max(wMM + pad*2, 60), H = hMM + pad*2 + labelH;
+    return { w: W, svg: svgEl(W, H,
+      text(W/2, 4.2, title, {size:3.2, weight:700}) +
+      text(W/2, 7.6, size, {size:2.4, fill:"#5a6b75"}) +
+      '<g transform="translate('+((W-wMM)/2).toFixed(2)+','+(pad+labelH-1).toFixed(2)+')">' + body + '</g>') };
+  }
+
+  // Box net (cross layout) for an L x D x H box with windows on the long faces
+  function boxNet(L, D, H, windows){
+    const t = Math.min(4, H*0.35);
+    const W = t + D + L + D + L, Ht = t + D + H + D + t;
+    let g = "";
+    const x0 = t, y0 = t + D;            // front face position
+    // faces: left side, front, right side, back (in a row), top and bottom above/below front
+    const faces = [[x0,y0,D,H],[x0+D,y0,L,H],[x0+D+L,y0,D,H],[x0+D+L+D,y0,L,H],[x0+D,y0-D,L,D],[x0+D,y0+H,L,D]];
+    g += tab(0, y0, t, H, "left");
+    g += tab(x0+D, 0, L, t, "top");
+    g += tab(x0+D, y0+H+D, L, t, "bottom");
+    g += tab(x0, y0-t, D, t, "top"); g += tab(x0+D+L, y0-t, D, t, "top");
+    g += tab(x0, y0+H, D, t, "bottom"); g += tab(x0+D+L, y0+H, D, t, "bottom");
+    faces.forEach(f => g += rect(f[0], f[1], f[2], f[3], {fill:"#f4f6f7"}));
+    // fold lines on shared edges
+    [[x0,y0,x0,y0+H],[x0+D,y0,x0+D,y0+H],[x0+D+L,y0,x0+D+L,y0+H],[x0+D+L+D,y0,x0+D+L+D,y0+H],
+     [x0+D,y0,x0+D+L,y0],[x0+D,y0+H,x0+D+L,y0+H]].forEach(s => g += line(s[0],s[1],s[2],s[3],{stroke:FOLD,dash:"1.6 1"}));
+    if (windows){
+      [x0+D, x0+D+L+D].forEach((fx, k) => {
+        const n = Math.max(2, Math.round(L / 9)), ww = L / n * 0.55, wh = H * 0.42;
+        for (let i = 0; i < n; i++){
+          const cx = fx + (i + 0.5) * L / n;
+          g += rect(cx - ww/2, y0 + H*0.16, ww, wh, {fill:"#8cc4ee", sw:0.25});
+        }
+        if (k === 0){
+          g += rect(fx + L/2 - L*0.09, y0 + H*0.62, L*0.18, H*0.38, {fill:"#6d8796", sw:0.25});
+          g += text(fx + L/2, y0 + H*0.13, "CONTROL ROOM", {size: Math.max(1.6, Math.min(3, H*0.11)), weight:700});
+        }
+      });
+    }
+    return { w: W, h: Ht, g: g };
+  }
+
+  function build(){
+    const board = Math.min(300, Math.max(40, +$("board").value || 110));
+    const s = board / BASE;
+    const damLenInput = +$("damlen").value;
+    const damL = (damLenInput > 0 ? damLenInput : 14.5 * s);   // cm, user's own river width wins
+    const k = damL / (14.5 * s);                              // extra stretch when the river is wider than the scaled model
+    $("scaleOut").textContent = s.toFixed(2) + "×";
+
+    const cm = v => v * 10;     // cm -> mm
+    // sizes in cm
+    const damH = 2.4 * s, damTop = 1.2 * s, damBase = 2.2 * s;
+    const walkL = damL + 0.3 * s, walkW = 2.6 * s;
+    const gateW = 2.4 * s * Math.min(k, 1.25), gateH = 1.6 * s, gateGap = 3.4 * s * k;
+    const chuteW = 2.3 * s * Math.min(k, 1.25), chuteL = 3.4 * s, chuteLip = 0.6 * s;
+    const platL = 12 * s, platD = 4 * s, platH = 0.5 * s;
+    const houseL = 3 * s, houseD = 2.2 * s, houseH = 1.2 * s;
+    const wheelD = 5.4 * s, tplL = 10 * s, tplD = 7 * s, tplH = 0.6 * s;
+    const f = v => r1(v) + " cm";
+
+    // parts table
+    const parts = [
+      ["Dam wall block", 1, f(damL)+" × "+f(damBase)+" × "+f(damH), "thermo", "Thermocol"],
+      ["Dam side profile (sanding guide)", 2, "base "+f(damBase)+", top "+f(damTop)+", height "+f(damH), "print", "Print"],
+      ["Dam front face", 1, f(damL)+" × "+f(damH), "print", "Print, glue on"],
+      ["Top walkway", 1, f(walkL)+" × "+f(walkW), "card", "Card, grey"],
+      ["Sluice gate panel", 4, f(gateW)+" × "+f(gateH), "card", "Card, dark grey"],
+      ["Spillway chute", 4, f(chuteW)+" × "+f(chuteL), "print", "Print or card"],
+      ["Control platform", 1, f(platL)+" × "+f(platD)+" × "+f(platH), "thermo", "Thermocol"],
+      ["Control house (folded net)", 2, f(houseL)+" × "+f(houseD)+" × "+f(houseH), "print", "Print on card"],
+      ["Turbine platform", 1, f(tplL)+" × "+f(tplD)+" × "+f(tplH), "thermo", "Thermocol"],
+      ["Water turbine wheel", 2, "Ø "+f(wheelD), "card", "Card, white"]
+    ];
+    $("parts").innerHTML = parts.map((p, i) =>
+      "<tr><td>"+(i+1)+"</td><td>"+p[0]+"</td><td>"+p[1]+"</td><td class=\"num\">"+p[2]+"</td><td><span class=\"mat "+p[3]+"\">"+p[4]+"</span></td></tr>").join("");
+
+    const out = [];
+
+    // 0. calibration bar
+    (function(){
+      let g = rect(0, 0, 50, 4, {fill:"#fff"});
+      for (let i = 0; i <= 5; i++) g += line(i*10, 0, i*10, i % 5 === 0 ? 6 : 4.8);
+      g += text(25, 9.5, "must measure exactly 5 cm", {size:2.4, fill:"#5a6b75"});
+      out.push(titled("Print check", "5 cm test bar", 50, 10, g));
+    })();
+
+    // 1. dam front face with gate marks
+    (function(){
+      const W = cm(damL), H = cm(damH);
+      let g = rect(0, 0, W, H, {fill:CON});
+      // block joints
+      for (let y = H/3; y < H - 0.1; y += H/3) g += line(0, y, W, y, {stroke:"#aab6bd", sw:0.2});
+      const gw = cm(gateW), gh = cm(gateH), gap = cm(gateGap);
+      for (let i = 0; i < 4; i++){
+        const cx = W/2 + (i - 1.5) * gap;
+        g += rect(cx - gw/2, H - gh - cm(0.15*s), gw, gh, {stroke:DARK, dash:"1.2 0.8", sw:0.3});
+        g += text(cx, H - gh/2 - cm(0.15*s) + 1, "gate " + (i+1), {size: Math.max(1.6, Math.min(2.6, gw/5)), fill:DARK});
+      }
+      g += text(W/2, Math.max(3, H*0.28), "HVM HYDRO POWER", {size: Math.max(1.8, Math.min(3.4, H*0.16)), weight:700, fill:"#3c4b54"});
+      if (W > PAGE_W_MM - 2*pad) g += line(W/2, -2, W/2, H + 2, {stroke:"#c0392b", dash:"1 1", sw:0.3});
+      out.push(titled("Dam front face", f(damL)+" × "+f(damH)+" · glue to downstream side", W, H, g));
+    })();
+
+    // 2. side profile x2
+    (function(){
+      const B = cm(damBase), T = cm(damTop), H = cm(damH);
+      const one = (ox, n) => '<polygon points="'+ox.toFixed(2)+','+H.toFixed(2)+' '+(ox+B).toFixed(2)+','+H.toFixed(2)+' '+(ox+T).toFixed(2)+',0 '+ox.toFixed(2)+',0" fill="'+CON+'" stroke="'+INK+'" stroke-width="0.35"/>' +
+        text(ox + B/2, H + 4, "end " + n, {size:2.4, fill:"#5a6b75"}) +
+        text(ox + 1, H/2, "lake", {size:2, anchor:"start", fill:FOLD});
+      const g = one(0, 1) + one(B + 8, 2);
+      out.push(titled("Dam side profile", "pin to each end, sand the slope", B*2 + 8, H + 6, g));
+    })();
+
+    // 3. walkway strip
+    (function(){
+      const W = cm(walkL), H = cm(walkW);
+      let g = rect(0, 0, W, H, {fill:"#dfe5e9"});
+      g += line(0, H*0.18, W, H*0.18, {stroke:"#7f8c94", sw:0.3});
+      g += line(0, H*0.82, W, H*0.82, {stroke:"#7f8c94", sw:0.3});
+      out.push(titled("Top walkway", f(walkL)+" × "+f(walkW), W, H, g));
+    })();
+
+    // 4. sluice gates x4
+    (function(){
+      const gw = cm(gateW), gh = cm(gateH);
+      let g = "";
+      for (let i = 0; i < 4; i++){
+        const x = i * (gw + 4);
+        g += rect(x, 0, gw, gh, {fill:DARK});
+        for (let j = 1; j < 4; j++) g += line(x + 0.8, gh*j/4, x + gw - 0.8, gh*j/4, {stroke:"#90a4ae", sw:0.25});
+      }
+      out.push(titled("Sluice gates × 4", f(gateW)+" × "+f(gateH), 4*gw + 12, gh, g));
+    })();
+
+    // 5. spillway chutes x4 (U channel: floor + two walls + glue lip)
+    (function(){
+      const cw = cm(chuteW), cl = cm(chuteL), wall = cm(chuteLip), t = Math.min(4, cl*0.18);
+      const one = ox => {
+        let g = "";
+        g += tab(ox + wall, 0, cw, t, "top");
+        g += rect(ox, t, wall, cl, {fill:"#eef4f7"});
+        g += rect(ox + wall, t, cw, cl, {fill:WATER});
+        g += rect(ox + wall + cw, t, wall, cl, {fill:"#eef4f7"});
+        g += line(ox + wall, t, ox + wall, t + cl, {stroke:FOLD, dash:"1.6 1"});
+        g += line(ox + wall + cw, t, ox + wall + cw, t + cl, {stroke:FOLD, dash:"1.6 1"});
+        g += line(ox + wall, t, ox + wall + cw, t, {stroke:FOLD, dash:"1.6 1"});
+        for (let y = t + cl*0.2; y < t + cl; y += cl*0.2) g += line(ox + wall + cw*0.25, y, ox + wall + cw*0.75, y + cl*0.06, {stroke:"#5aa9d6", sw:0.3});
+        return g;
+      };
+      const one_w = 2*wall + cw;
+      let g = "";
+      for (let i = 0; i < 4; i++) g += one(i * (one_w + 4));
+      out.push(titled("Spillway chutes × 4", f(chuteW)+" × "+f(chuteL)+" · fold walls up, tab under gate", 4*one_w + 12, t + cl, g));
+    })();
+
+    // 6. control house nets x2
+    (function(){
+      const n = boxNet(cm(houseL), cm(houseD), cm(houseH), true);
+      out.push(titled("Control house net (make 2)", f(houseL)+" × "+f(houseD)+" × "+f(houseH), n.w, n.h, n.g));
+      out.push(titled("Control house net (2 of 2)", f(houseL)+" × "+f(houseD)+" × "+f(houseH), n.w, n.h, n.g));
+    })();
+
+    // 7. platform footprints (cutting guides for thermocol)
+    (function(){
+      const W = cm(platL), H = cm(platD);
+      let g = rect(0, 0, W, H, {fill:"#e9edf0"});
+      const hl = cm(houseL), hd = cm(houseD);
+      g += rect(W*0.12, (H-hd)/2, hl, hd, {stroke:FOLD, dash:"1.2 0.8", sw:0.3});
+      g += rect(W*0.88 - hl, (H-hd)/2, hl, hd, {stroke:FOLD, dash:"1.2 0.8", sw:0.3});
+      g += text(W/2, H/2 + 1, "place houses on the blue marks", {size: Math.max(1.6, Math.min(2.6, H/6)), fill:"#5a6b75"});
+      out.push(titled("Control platform footprint", f(platL)+" × "+f(platD)+" · cut from thermocol, "+f(platH)+" thick", W, H, g));
+    })();
+    (function(){
+      const W = cm(tplL), H = cm(tplD);
+      let g = rect(0, 0, W, H, {fill:"#e9edf0"});
+      const wd = cm(wheelD);
+      g += '<circle cx="'+(W*0.3).toFixed(2)+'" cy="'+(H/2).toFixed(2)+'" r="'+(wd/2*0.35).toFixed(2)+'" fill="none" stroke="'+FOLD+'" stroke-dasharray="1.2 0.8" stroke-width="0.3"/>';
+      g += '<circle cx="'+(W*0.7).toFixed(2)+'" cy="'+(H/2).toFixed(2)+'" r="'+(wd/2*0.35).toFixed(2)+'" fill="none" stroke="'+FOLD+'" stroke-dasharray="1.2 0.8" stroke-width="0.3"/>';
+      g += text(W/2, H - 2.5, "blue circles: wheel stands / motor slot", {size: Math.max(1.6, Math.min(2.4, H/10)), fill:"#5a6b75"});
+      out.push(titled("Turbine platform footprint", f(tplL)+" × "+f(tplD)+" · cut from thermocol, "+f(tplH)+" thick", W, H, g));
+    })();
+
+    // 8. turbine wheels x2
+    (function(){
+      const d = cm(wheelD), R = d/2;
+      const wheel = cx => {
+        let g = '<circle cx="'+cx.toFixed(2)+'" cy="'+R.toFixed(2)+'" r="'+R.toFixed(2)+'" fill="#fff" stroke="'+INK+'" stroke-width="0.35"/>';
+        g += '<circle cx="'+cx.toFixed(2)+'" cy="'+R.toFixed(2)+'" r="'+(R*0.78).toFixed(2)+'" fill="none" stroke="'+FOLD+'" stroke-dasharray="1.2 0.8" stroke-width="0.3"/>';
+        for (let i = 0; i < 12; i++){
+          const a = i * Math.PI / 6;
+          g += line(cx + Math.cos(a)*R*0.2, R + Math.sin(a)*R*0.2, cx + Math.cos(a)*R, R + Math.sin(a)*R, {sw:0.3});
+        }
+        g += '<circle cx="'+cx.toFixed(2)+'" cy="'+R.toFixed(2)+'" r="'+Math.max(1, R*0.08).toFixed(2)+'" fill="'+INK+'"/>';
+        return g;
+      };
+      out.push(titled("Water turbine wheels × 2", "Ø "+f(wheelD)+" · cut the rim, slit the 12 lines, twist each paddle", d*2 + 8, d, wheel(R) + wheel(d + 8 + R)));
+    })();
+
+    // 9. sign
+    (function(){
+      const W = Math.min(cm(damL), 160), H = Math.max(10, W * 0.16);
+      let g = rect(0, 0, W, H, {fill:"#1677b8", stroke:"#0d4f7a"});
+      g += text(W/2, H*0.48, "HYDRO POWER STATION", {size: H*0.3, weight:700, fill:"#ffffff"});
+      g += text(W/2, H*0.8, "Hariyana Vidya Mandir · Smart City", {size: H*0.17, fill:"#d6ecfa"});
+      out.push(titled("Station sign", "stick on the control platform", W, H, g));
+    })();
+
+    $("pieces").innerHTML = out.map(p => '<div class="piece">' + p.svg + '</div>').join("");
+    $("wideWarn").hidden = !out.some(p => p.w > PAGE_W_MM);
+  }
+
+  $("board").addEventListener("input", () => {
+    // keep the dam proportional to the board until the user sets the river width themselves
+    if (!$("damlen").dataset.touched){
+      const b = +$("board").value;
+      if (b >= 40 && b <= 300) $("damlen").value = r1(14.5 * b / BASE);
+    }
+    build();
+  });
+  $("damlen").addEventListener("input", () => { $("damlen").dataset.touched = "1"; build(); });
+  build();
+})();
+</script>
+</body>
+</html>

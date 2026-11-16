@@ -14,6 +14,7 @@ import { Route as CircuitDiagramRouteImport } from './routes/circuit-diagram'
 import { Route as Esp32CodeRouteImport } from './routes/esp32-code'
 import { Route as GameRouteImport } from './routes/game'
 import { Route as HeadingBoardRouteImport } from './routes/heading-board'
+import { Route as HydroDamTemplateRouteImport } from './routes/hydro-dam-template'
 import { Route as LaunchVideoRouteImport } from './routes/launch-video'
 import { Route as ModelRouteImport } from './routes/model'
 import { Route as VoiceAgentRouteImport } from './routes/voice-agent'
@@ -43,6 +44,11 @@ const HeadingBoardRoute = HeadingBoardRouteImport.update({
   path: '/heading-board',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HydroDamTemplateRoute = HydroDamTemplateRouteImport.update({
+  id: '/hydro-dam-template',
+  path: '/hydro-dam-template',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchVideoRoute = LaunchVideoRouteImport.update({
   id: '/launch-video',
   path: '/launch-video',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/esp32-code': typeof Esp32CodeRoute
   '/game': typeof GameRoute
   '/heading-board': typeof HeadingBoardRoute
+  '/hydro-dam-template': typeof HydroDamTemplateRoute
   '/launch-video': typeof LaunchVideoRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/esp32-code': typeof Esp32CodeRoute
   '/game': typeof GameRoute
   '/heading-board': typeof HeadingBoardRoute
+  '/hydro-dam-template': typeof HydroDamTemplateRoute
   '/launch-video': typeof LaunchVideoRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/esp32-code': typeof Esp32CodeRoute
   '/game': typeof GameRoute
   '/heading-board': typeof HeadingBoardRoute
+  '/hydro-dam-template': typeof HydroDamTemplateRoute
   '/launch-video': typeof LaunchVideoRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/esp32-code'
     | '/game'
     | '/heading-board'
+    | '/hydro-dam-template'
     | '/launch-video'
     | '/model'
     | '/voice-agent'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/esp32-code'
     | '/game'
     | '/heading-board'
+    | '/hydro-dam-template'
     | '/launch-video'
     | '/model'
     | '/voice-agent'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/esp32-code'
     | '/game'
     | '/heading-board'
+    | '/hydro-dam-template'
     | '/launch-video'
     | '/model'
     | '/voice-agent'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   Esp32CodeRoute: typeof Esp32CodeRoute
   GameRoute: typeof GameRoute
   HeadingBoardRoute: typeof HeadingBoardRoute
+  HydroDamTemplateRoute: typeof HydroDamTemplateRoute
   LaunchVideoRoute: typeof LaunchVideoRoute
   ModelRoute: typeof ModelRoute
   VoiceAgentRoute: typeof VoiceAgentRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HeadingBoardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hydro-dam-template': {
+      id: '/hydro-dam-template'
+      path: '/hydro-dam-template'
+      fullPath: '/hydro-dam-template'
+      preLoaderRoute: typeof HydroDamTemplateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launch-video': {
       id: '/launch-video'
       path: '/launch-video'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   Esp32CodeRoute: Esp32CodeRoute,
   GameRoute: GameRoute,
   HeadingBoardRoute: HeadingBoardRoute,
+  HydroDamTemplateRoute: HydroDamTemplateRoute,
   LaunchVideoRoute: LaunchVideoRoute,
   ModelRoute: ModelRoute,
   VoiceAgentRoute: VoiceAgentRoute,

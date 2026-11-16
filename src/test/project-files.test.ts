@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { THREE_R128_CDN, toStandaloneHtml } from "@/lib/standalone-download";
@@ -13,6 +14,11 @@ describe("project files on the website", () => {
       expect(existsSync(file(`circuit-diagram/page-${n}.webp`))).toBe(true);
       expect(existsSync(file(`circuit-diagram/page-${n}.png`))).toBe(true);
     }
+  });
+
+  it("serves the hydro dam template exactly as published", () => {
+    const html = readFileSync(file("hydro-dam-template/index.html"));
+    expect(createHash("sha256").update(html).digest("hex")).toBe("931d3eedb8aae4f732d4bfd6c6163cdd0d04c2b7c3dea9d87edfa2a4b16682a1");
   });
 
   it("turns the game and the 3D model into standalone downloads that load three.js r128 from the CDN", () => {
