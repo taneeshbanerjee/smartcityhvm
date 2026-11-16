@@ -13,6 +13,7 @@ import {
   type ControlPlan,
 } from "@/lib/ai-control-plan";
 import { generateAIControlPlan } from "@/lib/ai-control-plan.functions";
+import { PlanCityPreview } from "@/components/plan-city-preview";
 import type { CityState } from "@/lib/smartcity";
 
 const MAX_LENGTH = 1000;
@@ -133,6 +134,7 @@ export function AIControlPlanPanel({ state, connected, onApply }: {
               })}
             </ul>
           )}
+          <PlanCityPreview state={state} actions={plan.actions} title={plan.title} />
           <div className="flex gap-2">
             <Button onClick={() => { void applyPlan(); }} disabled={!connected || changes.length === 0 || busy !== null} className="h-11 flex-1 rounded-xl">
               {busy === "applying" ? <Loader2 className="animate-spin" /> : <Play />}

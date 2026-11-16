@@ -33,6 +33,7 @@ body.night{--card:rgba(11,20,33,.92);--fg:#e8eff7;--ac:#ffb43c;--on:#1d1300}
 body.embedded-background{background:transparent!important}
 body.embedded-background #sky{display:none}
 body.embedded-background #top,body.embedded-background #dock,body.embedded-background #bar,body.embedded-background #dpad{display:none!important}
+body.embedded-preview #top,body.embedded-preview #dock,body.embedded-preview #bar,body.embedded-preview #dpad{display:none!important}
 .card,button{transition:background-color .6s,color .6s}
 #cutp{max-height:46vh;overflow-y:auto}#cutp[hidden]{display:none}
 #cutp .g{display:grid;grid-template-columns:repeat(var(--n,2),1fr);gap:6px;margin:6px 0}
@@ -228,8 +229,8 @@ LP.forEach(([x,z],i)=>{D.position.set(x,.1,z);D.updateMatrix();pole.setMatrixAt(
 
 /* glow halos (lamps, plants, turbine beacons) */
 const mk=(P,c,z,op,fixed)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P.flat(),3));const m=new T.PointsMaterial({color:c,map:gl,blending:AD,sizeAttenuation:true});
-if(fixed){m.transparent=true;m.depthWrite=false;m.opacity=0;m.visible=false}else mat(m,op);PS.push([m,z]);add(new T.Points(g,m)).frustumCulled=false;return m};
-mk(LP.map(([x,z])=>[x,2.72,z]),0xffcf80,1.6,.8);
+if(fixed){m.transparent=true;m.depthWrite=false;m.opacity=0;m.visible=false}else mat(m,op);PS.push([m,z]);const pts=add(new T.Points(g,m));pts.frustumCulled=false;m.userData.pts=pts;return m};
+const lh=mk(LP.map(([x,z])=>[x,2.72,z]),0xffcf80,1.6,.8);
 const hm=mk([[-17.6,2.8,-17.8],[9.3,3.2,18.3],[28.9,3,20],[32.3,3,24.5]],0x55e6ff,5,0,1);
 mk([[-52.4,7.2,22.4],[-47.4,7.2,22.4],[45,7.4,-8.5]],0xff8a1e,5,.7);
 const bc=mk(rotors.map(([r])=>[r.position.x,r.position.y+.6,r.position.z]).concat(BL.filter(b=>b[4]>=11).map(b=>[b[0],b[4]+.8,b[1]])),0xff3030,1.6,0,1);
@@ -273,7 +274,10 @@ const z=s/Math.tan(cam.fov*.0087266);PS.forEach(([m,w])=>m.size=w*z);stars.posit
 bc.opacity=nt*(Math.sin(t*4)>.2?1:.12);hm.opacity=nt*(.6+.4*Math.sin(t*2.2));
 NL.forEach(l=>{for(let k=0;k<l.n;k++){l.cu.getPointAt((k/l.n+t*l.sp/l.len)%1,V);V.toArray(pp,(l.i+k)*3)}});pg.attributes.position.needsUpdate=true}
 apply(0);
-return{go:on=>{tg=on?1:0},tick};
+/* plan preview: switch the modelled devices (street lamps, lit windows, red beacons) */
+function devices(d){if(d.SL!==undefined){pool.visible=lh.userData.pts.visible=d.SL;head.material.color.setHex(d.SL?0xffe2a0:0x3a4048)}
+if(d.BL!==undefined)wm.visible=d.BL;if(d.RD!==undefined)bc.userData.pts.visible=d.RD}
+return{go:on=>{tg=on?1:0},tick,devices};
 })();
 
 /* camera orbit */
@@ -291,11 +295,22 @@ P.set(e.pointerId,[e.clientX,e.clientY])});
 ['pointerup','pointercancel'].forEach(k=>cv.addEventListener(k,e=>{if(k=='pointerup'&&P.size==1){if(DRAW.on)dUp(e);else if(moved<8)tap(e)}P.delete(e.pointerId)}));
 cv.addEventListener('wheel',e=>{e.preventDefault();R=zoom(R*(1+e.deltaY*.001))},{passive:false});
 function setNight(on){document.body.classList.toggle('night',on);NIGHT.go(on);$('night').textContent=on?'☀️ Day':'🌙 Night';$('night').setAttribute('aria-pressed',String(on));$('hint').textContent=on?'Gold: generation · Blue: power grid · Cream: buildings':'Drag to rotate · pinch to zoom · tap any part for its size'}
+const DEV={WT:true,HT:true};
+function snapshot(){const w=cv.width,h=cv.height,c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),nt=document.body.classList.contains('night'),q=g.createLinearGradient(0,0,0,h);
+(nt?[[0,'#01040c'],[.62,'#0a1c33'],[1,'#17314f']]:[[0,'#8fd0ff'],[1,'#eaf7ff']]).forEach(([o,k])=>q.addColorStop(o,k));g.fillStyle=q;g.fillRect(0,0,w,h);g.drawImage(cv,0,0);
+parent.postMessage({channel:'smartcity-model-control',version:1,type:'snapshot',image:c.toDataURL('image/png')},'*')}
+function applyDeviceControl(d){
+const keys=['SL','BL','GR','RD','WT','HT'];if(Object.keys(d).some(k=>!['channel','version','type','devices'].includes(k)))return;
+const v=d.devices;if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k)||typeof v[k]!=='boolean'))return;
+if(v.WT!==undefined)DEV.WT=v.WT;if(v.HT!==undefined)DEV.HT=v.HT;NIGHT.devices(v)}
 function applyDashboardControl(event){
 if(event.source!==window.parent)return;
 if(!new Set(['http://localhost:8080','https://smartcityhvm.lovable.app','https://id-preview--c6b870eb-4347-471a-afe8-8b74d34cd822.lovable.app']).has(event.origin))return;
 const d=event.data;
-if(!d||typeof d!=='object'||Array.isArray(d)||d.channel!=='smartcity-model-control'||d.version!==1||d.type!=='state')return;
+if(!d||typeof d!=='object'||Array.isArray(d)||d.channel!=='smartcity-model-control'||d.version!==1)return;
+if(d.type==='devices')return applyDeviceControl(d);
+if(d.type==='snapshot'){if(Object.keys(d).length===3)snapReq=true;return}
+if(d.type!=='state')return;
 const valid=new Set(['channel','version','type','theme','angle','presentation']);
 if(Object.keys(d).some(k=>!valid.has(k)))return;
 if(d.theme!==undefined&&d.theme!=='night'&&d.theme!=='day')return;
@@ -307,6 +322,7 @@ if(d.presentation!==undefined)document.body.classList.toggle('embedded-backgroun
 }
 addEventListener('message',applyDashboardControl);
 if(new URLSearchParams(location.search).has('background')){document.body.classList.add('embedded-background');setNight(true)}
+if(new URLSearchParams(location.search).has('preview')){document.body.classList.add('embedded-preview');spin=true}
 $('spin').onclick=()=>spin=!spin;$('topv').onclick=()=>{ph=.12;R=zoom(R0*s*1.05)};$('reset').onclick=()=>{thT=null;th=.35;ph=.95;R=R0*s;spin=false};
 $('lab').onclick=()=>labs.forEach(l=>l.visible=!l.visible);
 $('sizes').onclick=()=>{$('panel').hidden=!$('panel').hidden};
@@ -411,9 +427,9 @@ function fly(dt){const k=DR.k,v=16*s*(k.ShiftLeft||k.ShiftRight?2.4:1)*dt,f=(k.K
 DR.p.x=Math.max(-75*s,Math.min(75*s,DR.p.x+(-sn*f+cs*r)*v));DR.p.z=Math.max(-55*s,Math.min(55*s,DR.p.z+(-cs*f-sn*r)*v));DR.p.y=Math.max(2.5*s,Math.min(95*s,DR.p.y+u*v));
 DR.roll+=(-r*.09-DR.roll)*Math.min(1,dt*6);cam.position.copy(DR.p);cam.rotation.set(DR.pitch,DR.yaw,DR.roll,'YXZ')}
 
-let t0=performance.now(),shadowTick=0;
+let t0=performance.now(),shadowTick=0,snapReq=false;
 (function loop(){const t=performance.now()/1000,dt=Math.min(.05,(performance.now()-t0)/1000);t0=performance.now();
-rotors.forEach(([r,i])=>r.rotation.z=t*(1.2+i%3*.3));wheels.forEach((w,i)=>w.rotation.z=t*(i?-1:1));
+if(DEV.WT)rotors.forEach(([r,i])=>r.rotation.z+=dt*(1.2+i%3*.3));if(DEV.HT)wheels.forEach((w,i)=>w.rotation.z+=dt*(i?-1:1));
 smoke.forEach(([m,o,x,zz,y0])=>{const p=(t*.22+o)%1;m.position.set(x+p*1.2,y0+p*6,zz);m.scale.setScalar(.7+p*1.1);m.material.opacity=.7*(1-p)});
 cars.forEach(c=>{const [a,b,e,d]=RD[c.ri],L=Math.hypot(e-a,d-b);c.u=(c.u+c.v*dt/L)%1;const u=c.sd>0?c.u:1-c.u,dx=(e-a)/L,dz=(d-b)/L;
 c.g.position.set(a+(e-a)*u-dz*.4*c.sd,.1,b+(d-b)*u+dx*.4*c.sd);c.g.rotation.y=-Math.atan2(dz,dx)+(c.sd>0?0:Math.PI)});
@@ -425,5 +441,5 @@ if(thT!==null){th+=(thT-th)*(1-Math.exp(-dt*7));if(Math.abs(thT-th)<1e-4){th=thT
 const bg=document.body.classList.contains('embedded-background');ren.shadowMap.autoUpdate=!bg;if(bg)ren.shadowMap.needsUpdate=(++shadowTick%3===0);
 train.position.x=3+Math.sin(t*.22)*24;const nn=document.body.classList.contains('night');S.fog.color.setHex(nn?0x07101d:0xcfe6fb);S.fog.near=(nn?700:260)*s;S.fog.far=(nn?3600:1100)*s;
 if(flyOn){fly(dt);cam.near=.3}else{cam.position.set(R*Math.sin(ph)*Math.sin(th),3*s+R*Math.cos(ph),R*Math.sin(ph)*Math.cos(th));cam.lookAt(0,3*s,0);cam.near=Math.max(.5,R*.03)}cam.updateProjectionMatrix();
-NIGHT.tick(t,dt);frame();requestAnimationFrame(loop)})();
+NIGHT.tick(t,dt);frame();if(snapReq){snapReq=false;snapshot()}requestAnimationFrame(loop)})();
 </script></body></html>

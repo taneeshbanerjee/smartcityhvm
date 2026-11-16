@@ -38,6 +38,7 @@ describe("AI control plan panel", () => {
     expect(generate).toHaveBeenCalledWith({ data: { description: "Evening assembly lights" } });
     expect(screen.getByText("Moderate power")).toBeInTheDocument();
     expect(screen.getByText(/Already on/)).toBeInTheDocument();
+    expect(screen.getByTitle("3D preview of our city with this plan applied")).toHaveAttribute("src", "/smart-city-model/index.html?preview=1");
     expect(onApply).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Apply 2 changes" }));
