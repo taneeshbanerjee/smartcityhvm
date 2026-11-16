@@ -18,9 +18,15 @@ export default defineConfig({
         injectRegister: null,
         manifest: false,
         filename: "sw.js",
+        // TanStack Start / Nitro deploy the client from .output/public, not vite's default dist,
+        // so the service worker must be written there and precache the files found there.
+        outDir: ".output/public",
         devOptions: { enabled: false },
         workbox: {
+          globDirectory: ".output/public",
           globPatterns: ["**/*.{js,css,png,svg,webmanifest,woff2}"],
+          // Standalone 3D model, game and heading-board pages load their own large scripts on demand.
+          globIgnores: ["smart-city-model/**", "smart-city-game/**", "heading-boards/**"],
           navigateFallback: null,
           cleanupOutdatedCaches: true,
           runtimeCaching: [
