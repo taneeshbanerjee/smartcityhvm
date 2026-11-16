@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changedPlanActions, normalizeControlPlan, normalizePlanDescription, planCommands, type ControlPlan } from "@/lib/ai-control-plan";
+import { changedPlanActions, normalizeControlPlan, normalizePlanDescription, orderPlanActions, planCommands, type ControlPlan } from "@/lib/ai-control-plan";
 import { initialState } from "@/lib/smartcity";
 
 const validPlan: ControlPlan = {
@@ -24,6 +24,11 @@ describe("AI control plan validation", () => {
     expect(changedPlanActions({ ...initialState, SL: true }, validPlan.actions)).toEqual([
       { device: "BL", enabled: true },
     ]);
+  });
+
+  it("sends Auto mode after light commands so the lights don't cancel it", () => {
+    const ordered = orderPlanActions([{ device: "AUTO", enabled: true }, { device: "BL", enabled: true }, { device: "SL", enabled: true }]);
+    expect(planCommands(ordered)).toEqual(["SL:1", "BL:1", "AUTO:1"]);
   });
 
   it("rejects oversized descriptions before sending them to the model", () => {

@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SmartCityMedia } from "@/components/smart-city-media";
+import { AIControlPlanPanel } from "@/components/ai-control-plan-panel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -192,6 +193,10 @@ function Index() {
 
   const scene = (s: string) => { if (s === "show") return startShow(); stopShow(); send("SCENE:" + s); };
   const allOff = () => { stopShow(); send("ALL:0"); };
+  const applyPlan = async (commands: string[]) => {
+    stopShow();
+    for (const command of commands) await send(command);
+  };
   const toggle = (k: SwitchKey | "AUTO") => send(`${k}:${state[k] ? 0 : 1}`);
   const openModelFullscreen = async () => {
     const frame = modelFrameRef.current;
@@ -390,6 +395,10 @@ function Index() {
               <Square size={16} /> Stop show
             </button>
           )}
+        </Card>
+
+        <Card title="AI Control Plan" icon={<Bot size={18} />}>
+          <AIControlPlanPanel state={state} connected={!disabled} onApply={applyPlan} />
         </Card>
 
         <Card title="Auto Mode" icon={<Power size={18} />}>

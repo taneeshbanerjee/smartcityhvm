@@ -65,3 +65,10 @@ export function planCommands(actions: PlanAction[]): string[] {
 export function changedPlanActions(state: CityState, actions: PlanAction[]): PlanAction[] {
   return actions.filter(({ device, enabled }) => state[device] !== enabled);
 }
+/**
+ * Order actions in device order with AUTO last: the firmware turns Auto mode off
+ * whenever it receives a street or building light command.
+ */
+export function orderPlanActions(actions: PlanAction[]): PlanAction[] {
+  return [...actions].sort((a, b) => PLAN_DEVICE_KEYS.indexOf(a.device) - PLAN_DEVICE_KEYS.indexOf(b.device));
+}
