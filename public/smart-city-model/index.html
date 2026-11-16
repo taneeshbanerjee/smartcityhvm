@@ -281,13 +281,13 @@ return{go:on=>{tg=on?1:0},tick,devices};
 })();
 
 /* camera orbit */
-let th=.35,thT=null,ph=.95,R=90,R0=90,spin=false,s=1,moved=0,flyOn=false;const P=new Map(),$=id=>document.getElementById(id);
+let th=.35,thT=null,thV=0,ph=.95,R=90,R0=90,spin=false,s=1,moved=0,flyOn=false;const P=new Map(),$=id=>document.getElementById(id);
 function fit(){const a=innerWidth/innerHeight,embedded=document.body.classList.contains('embedded-background');cam.aspect=a;cam.fov=embedded?(a<1?70:45):a<1?(flyOn?75:70):(flyOn?62:45);R0=embedded?(a<1?180:95):a<1?150:85;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight,false)}
 addEventListener('resize',fit);fit();R=R0;
 const modelResizeObserver=new ResizeObserver(()=>{fit();R=R0*s});modelResizeObserver.observe(document.documentElement);
 requestAnimationFrame(()=>{fit();R=R0*s});
 const zoom=v=>Math.min(260*s,Math.max(22*s,v));
-cv.addEventListener('pointerdown',e=>{thT=null;cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);if(P.size==1){moved=0;if(DRAW.on)dDown(e)}});
+cv.addEventListener('pointerdown',e=>{thT=null;thV=0;cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);if(P.size==1){moved=0;if(DRAW.on)dDown(e)}});
 cv.addEventListener('pointermove',e=>{const o=P.get(e.pointerId);if(!o)return;
 if(P.size==1){moved+=Math.abs(e.clientX-o[0])+Math.abs(e.clientY-o[1]);if(DRAW.on)dMove(e);else if(flyOn){DR.yaw-=(e.clientX-o[0])*.005;DR.pitch=Math.max(-1.45,Math.min(1.2,DR.pitch-(e.clientY-o[1])*.005))}else{th-=(e.clientX-o[0])*.008;ph=Math.min(1.5,Math.max(.12,ph-(e.clientY-o[1])*.008))}}
 else if(P.size==2){moved=99;const q=[...P.entries()].find(([k])=>k!=e.pointerId)[1];R=zoom(R*Math.hypot(o[0]-q[0],o[1]-q[1])/Math.hypot(e.clientX-q[0],e.clientY-q[1]))}
@@ -323,7 +323,7 @@ if(d.presentation!==undefined)document.body.classList.toggle('embedded-backgroun
 addEventListener('message',applyDashboardControl);
 if(new URLSearchParams(location.search).has('background')){document.body.classList.add('embedded-background');setNight(true)}
 if(new URLSearchParams(location.search).has('preview')){document.body.classList.add('embedded-preview');spin=true}
-$('spin').onclick=()=>spin=!spin;$('topv').onclick=()=>{ph=.12;R=zoom(R0*s*1.05)};$('reset').onclick=()=>{thT=null;th=.35;ph=.95;R=R0*s;spin=false};
+$('spin').onclick=()=>spin=!spin;$('topv').onclick=()=>{ph=.12;R=zoom(R0*s*1.05)};$('reset').onclick=()=>{thT=null;thV=0;th=.35;ph=.95;R=R0*s;spin=false};
 $('lab').onclick=()=>labs.forEach(l=>l.visible=!l.visible);
 $('sizes').onclick=()=>{$('panel').hidden=!$('panel').hidden};
 $('night').onclick=()=>setNight(!document.body.classList.contains('night'));
@@ -435,8 +435,10 @@ cars.forEach(c=>{const [a,b,e,d]=RD[c.ri],L=Math.hypot(e-a,d-b);c.u=(c.u+c.v*dt/
 c.g.position.set(a+(e-a)*u-dz*.4*c.sd,.1,b+(d-b)*u+dx*.4*c.sd);c.g.rotation.y=-Math.atan2(dz,dx)+(c.sd>0?0:Math.PI)});
 boats.forEach((g,i)=>g.position.y=.1+Math.sin(t*1.2+i)*.05);
 if(spin)th+=.24*dt;
-/* ease toward the dashboard's scroll angle so wheel and touch steps glide instead of jumping */
-if(thT!==null){th+=(thT-th)*(1-Math.exp(-dt*7));if(Math.abs(thT-th)<1e-4){th=thT;thT=null}}
+/* follow the dashboard's scroll angle with a critically damped spring: speed changes gradually,
+   so wheel and touch steps become one continuous turn instead of surging at every step */
+if(thT!==null){const w=2/.32,x=w*dt,e=1/(1+x+.48*x*x+.235*x*x*x),c=th-thT,q=(thV+w*c)*dt;thV=(thV-w*q)*e;th=thT+(c+q)*e;
+if(Math.abs(thT-th)<1e-4&&Math.abs(thV)<1e-3){th=thT;thT=null;thV=0}}
 /* behind the dashboard, refresh the soft shadows every third frame; full screen keeps every frame */
 const bg=document.body.classList.contains('embedded-background');ren.shadowMap.autoUpdate=!bg;if(bg)ren.shadowMap.needsUpdate=(++shadowTick%3===0);
 train.position.x=3+Math.sin(t*.22)*24;const nn=document.body.classList.contains('night');S.fog.color.setHex(nn?0x07101d:0xcfe6fb);S.fog.near=(nn?700:260)*s;S.fog.far=(nn?3600:1100)*s;
