@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { THREE_R128_CDN, toStandaloneHtml } from "@/lib/standalone-download";
@@ -13,6 +14,13 @@ describe("project files on the website", () => {
       expect(existsSync(file(`circuit-diagram/page-${n}.webp`))).toBe(true);
       expect(existsSync(file(`circuit-diagram/page-${n}.png`))).toBe(true);
     }
+  });
+
+  it("serves the theme song exactly as uploaded, with its cover art", () => {
+    const song = readFileSync(file("theme-song/Smart_City_Dawn.mp3"));
+    expect(createHash("sha256").update(song).digest("hex")).toBe("4e1ba5fb639717181c43249eb91d38557fa265bba96ea0419c3a0d42adb96411");
+    expect(song.subarray(0, 3).toString("latin1")).toBe("ID3");
+    expect(existsSync(file("theme-song/cover.jpg"))).toBe(true);
   });
 
   it("lets every hydro dam size be edited, keeping pieces, steps and board scaling in sync", () => {
