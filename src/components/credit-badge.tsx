@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { showCreditBadgeOn } from "@/lib/credit-badge";
 
 const DISMISS_KEY = "smartcity-credit-dismissed";
 
 /**
  * Small "Edited by Taneesh" credit in the bottom-right corner, raised to sit just above the
  * hosting badge Lovable shows there (so neither covers the other); ✕ hides it for this session.
+ * Not shown on the game and 3D pages.
  */
-export function CreditBadge() {
+export function CreditBadge({ pathname }: { pathname: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function CreditBadge() {
     try { sessionStorage.setItem(DISMISS_KEY, "1"); } catch { /* Storage can be unavailable. */ }
   };
 
-  if (!visible) return null;
+  if (!visible || !showCreditBadgeOn(pathname)) return null;
   return (
     <div
       role="note"
