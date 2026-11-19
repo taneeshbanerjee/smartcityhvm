@@ -1,5 +1,5 @@
-/** Full-screen game and 3D pages where the credit badge would cover controls or the model. */
-const HIDDEN_ON = ["/game", "/model", "/heading-board"];
+/** Full-screen game, 3D and template pages where the credit badge would cover controls or the content. */
+const HIDDEN_ON = ["/game", "/model", "/heading-board", "/hydro-dam-template"];
 
 /** Anything a person presses like a button: buttons, button-style links, switches, tabs and form buttons. */
 export const BUTTON_SELECTOR = [
