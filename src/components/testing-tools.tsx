@@ -32,7 +32,7 @@ const commands = [
   ["SCENE:eco", "Request Eco scene."],
   [
     "SCENE:show",
-    "Start the stage light show. The ESP32 runs it itself (no Bluetooth delay): 128 BPM, a new step every half beat, 10 patterns, turbines on, looping until stopped.",
+    "Start the stage light show. The ESP32 runs it itself (no Bluetooth delay): 128 BPM, a new step every half beat, 100 patterns, turbines on, looping until stopped.",
   ],
   ["SHOW:0", "Stop the show; the city returns to how it was before. Any other command also ends the show first."],
   ["MB:120", "Start a new party song at this tempo (60–180 BPM)."],

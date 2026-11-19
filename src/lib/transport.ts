@@ -1,5 +1,5 @@
 import { NUS_NOTIFY, NUS_SERVICE, NUS_WRITE, formatStatus, initialState, type CityState } from "./smartcity";
-import { showLights, SHOW_STEP_MS, SHOW_STEPS } from "./show";
+import { PATTERN_COUNT, PATTERN_STEPS, showLights, SHOW_STEP_MS, SHOW_STEPS } from "./show";
 
 export interface Transport {
   send(cmd: string): Promise<void>;
@@ -199,8 +199,8 @@ export function connectDemo(h: Handlers): Transport {
   let thr = 1500;
   let t = 0;
   let closed = false;
-  // party mode, simulated like the firmware: the show patterns step on every half beat of the song
-  // (a new pattern every 2 bars), turbines on, then the city is restored
+  // party mode, simulated like the firmware: the 100 patterns step on every half beat of the song
+  // (a new pattern every bar), turbines on, then the city is restored
   let bpm = 120;
   let songSixteenths = 0;
   // stage show, simulated like the firmware: same patterns and tempo, turbines on, city restored afterwards
@@ -223,10 +223,12 @@ export function connectDemo(h: Handlers): Transport {
     show = { saved, step: 0, timer: setInterval(() => { if (show) { show.step = (show.step + 1) % SHOW_STEPS.length; showFrame(); } }, SHOW_STEP_MS) };
     showFrame();
   };
-  let party: { timer: ReturnType<typeof setInterval>; saved: CityState } | null = null;
+  let party: { timer: ReturnType<typeof setInterval>; saved: CityState; half: number } | null = null;
+  let partyPattern = 0;   // like the firmware, each party carries on from where the last one stopped
   const stopParty = (restore: boolean) => {
     if (!party) return;
     clearInterval(party.timer);
+    partyPattern = (partyPattern + Math.floor(Math.max(0, party.half - 1) / PATTERN_STEPS) + 1) % PATTERN_COUNT;
     if (restore) Object.assign(s, { ...party.saved, LDR: s.LDR });
     party = null;
     s.MU = false;
@@ -237,15 +239,15 @@ export function connectDemo(h: Handlers): Transport {
     stopShow(true);
     const saved = { ...s };
     const halfBeats = Math.ceil(songSixteenths / 2);
-    let half = 0;
     const step = () => {
-      if (closed) return;
-      if (half >= halfBeats) { stopParty(true); h.onLine(formatStatus(s)); return; }
-      Object.assign(s, showLights(SHOW_STEPS[half % SHOW_STEPS.length] ?? 0), { WT: true, AUTO: false, MU: true });
-      half++;
+      if (closed || !party) return;
+      if (party.half >= halfBeats) { stopParty(true); h.onLine(formatStatus(s)); return; }
+      const i = (partyPattern * PATTERN_STEPS + party.half) % SHOW_STEPS.length;
+      Object.assign(s, showLights(SHOW_STEPS[i] ?? 0), { WT: true, AUTO: false, MU: true });
+      party.half++;
       h.onLine(formatStatus(s));
     };
-    party = { timer: setInterval(step, 30000 / bpm), saved };
+    party = { timer: setInterval(step, 30000 / bpm), saved, half: 0 };
     step();
   };
   const emit = () => setTimeout(() => { if (!closed) h.onLine(formatStatus(s)); }, 120);

@@ -1,24 +1,24 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SHOW_BPM, SHOW_PATTERNS, SHOW_STEP_MS, SHOW_STEPS } from "@/lib/show";
+import { PATTERN_STEPS, SHOW_BPM, SHOW_PATTERNS, SHOW_STEP_MS, SHOW_STEPS } from "@/lib/show";
 import { parseStatus, parseVoice } from "@/lib/smartcity";
 import { connectDemo } from "@/lib/transport";
 
 afterEach(() => { vi.useRealTimers(); });
 
 describe("stage light show", () => {
-  it("matches the show table in the ESP32 firmware exactly", () => {
+  it("matches the 100-pattern table in the ESP32 firmware exactly", () => {
     const ino = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"), "utf8");
-    const table = ino.slice(ino.indexOf("const uint8_t SHOW_STEPS[] = {"), ino.indexOf("};", ino.indexOf("const uint8_t SHOW_STEPS[] = {")));
-    const bits: Record<string, number> = { W_: 1, Y_: 2, G_: 4, R_: 8, A_: 15, "0": 0 };
-    const firmware = table.slice(table.indexOf("{") + 1).split("\n").map((l) => l.replace(/\/\/.*$/, "")).join(" ")
-      .split(",").map((t) => t.trim()).filter(Boolean)
-      .map((t) => t.split("|").reduce((m, p) => m | bits[p.trim()]!, 0));
+    const start = ino.indexOf("const uint8_t SHOW_STEPS[] = {");
+    const table = ino.slice(ino.indexOf("{", start) + 1, ino.indexOf("};", start));
+    const firmware = table.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join(" ").split(",").map((t) => t.trim()).filter(Boolean).map(Number);
     expect(firmware).toEqual(SHOW_STEPS);
     expect(ino).toContain(`const uint16_t SHOW_BPM = ${SHOW_BPM};`);
-    expect(SHOW_PATTERNS).toHaveLength(10);
-    expect(SHOW_PATTERNS.every((p) => p.steps.length === 16)).toBe(true);
+    expect(ino).toContain(`const uint8_t PATTERN_STEPS = ${PATTERN_STEPS};`);
+    expect(SHOW_PATTERNS).toHaveLength(100);
+    expect(SHOW_PATTERNS.every((p) => p.steps.length === PATTERN_STEPS && p.steps.every((v) => v >= 0 && v <= 15))).toBe(true);
+    expect(new Set(SHOW_PATTERNS.map((p) => p.steps.join())).size).toBe(100);   // all different
     expect(SHOW_STEP_MS).toBe(234);
   });
 

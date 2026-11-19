@@ -15,11 +15,11 @@
     SHOW:0  stop the show (the city returns to how it was before the show)
 
   SHOW: a stage light show that runs on the ESP32 itself (no Bluetooth latency): 128 BPM,
-  a new step every half beat (~234 ms), 10 patterns of 2 bars each, looping until stopped.
+  a new step every half beat (~234 ms), 100 patterns of one bar each, looping until stopped.
   The wind turbines spin for the whole show. Any other command ends it and restores the city first.
 
-  PARTY MODE (1-minute song on the buzzer; the lights step through the 10 show patterns
-  on every half beat of the song, a new pattern every 2 bars, turbines on):
+  PARTY MODE (1-minute song on the buzzer; the lights step through the 100 patterns on every
+  half beat of the song, a new pattern every bar, each party continuing where the last ended):
     MB:<60-180>       start a new song at this tempo (beats per minute)
     MA:<notes>        add up to 15 notes, 4 hex digits each: 2 = MIDI note
                       (00 = rest), 2 = length in 16th notes. e.g. MA:3C044004
@@ -78,34 +78,118 @@ uint32_t partyNoteT = 0, partyNoteMs = 0, partySix = 0, partyNoteSix = 0, partyE
 uint8_t partySaved = 0;
 bool partySavedAuto = false;
 
-// ---------- Show (stage light show) ----------
-// W = white street lights, Y = yellow building lights, G = green, R = red, A = all four, 0 = dark.
-enum : uint8_t { W_ = B_SL, Y_ = B_BL, G_ = B_GR, R_ = B_RD, A_ = B_SL | B_BL | B_GR | B_RD };
+// ---------- Light patterns for the Show and Party Mode ----------
+// 100 patterns of one bar each (8 half-beat steps). Values are light bits: 1 = white street lights,
+// 2 = yellow building lights, 4 = green, 8 = red (15 = all four, 0 = dark). The website's demo mode
+// uses the same table (src/lib/show.ts), and a test checks the two are identical.
 const uint16_t SHOW_BPM = 128;
 const uint32_t SHOW_STEP_MS = 60000UL / SHOW_BPM / 2;   // half a beat: ~234 ms
+const uint8_t PATTERN_STEPS = 8;
 const uint8_t SHOW_STEPS[] = {
-  // 1 chase
-  W_, Y_, G_, R_, W_, Y_, G_, R_, W_, Y_, G_, R_, W_, Y_, G_, R_,
-  // 2 bounce
-  W_, Y_, G_, R_, G_, Y_, W_, Y_, G_, R_, G_, Y_, W_, Y_, G_, R_,
-  // 3 alternating pairs
-  W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_,
-  // 4 build and drop
-  W_, W_|Y_, W_|Y_|G_, A_, A_, 0, A_, 0, R_, R_|G_, R_|G_|Y_, A_, A_, 0, A_, 0,
-  // 5 strobe
-  A_, 0, A_, 0, A_, 0, A_, 0, A_, 0, A_, 0, A_, 0, A_, 0,
-  // 6 red and white flash
-  R_, 0, R_, 0, W_, 0, W_, 0, R_, 0, R_, 0, W_, 0, W_, 0,
-  // 7 fill and drain
-  W_, W_|Y_, W_|Y_|G_, A_, Y_|G_|R_, G_|R_, R_, 0, R_, R_|G_, R_|G_|Y_, A_, W_|Y_|G_, W_|Y_, W_, 0,
-  // 8 twin flash
-  W_|Y_, 0, G_|R_, 0, W_|Y_, 0, G_|R_, 0, W_|R_, 0, Y_|G_, 0, W_|R_, 0, Y_|G_, 0,
-  // 9 sparkle
-  W_|G_, R_, Y_, W_|R_, G_, Y_|R_, W_, G_|Y_, R_, W_|Y_, G_|R_, W_, Y_|G_, R_, W_|G_|R_, A_,
-  // 10 finale
-  A_, 0, A_, 0, A_, A_, 0, 0, A_, 0, A_, 0, A_, A_, A_, 0
+   1,  2,  4,  8,  1,  2,  4,  8,   //   1 chase WYGR
+   1,  2,  4,  8,  4,  2,  1,  2,   //   2 bounce WYGR
+  15,  0, 15,  0, 15,  0, 15,  0,   //   3 strobe
+   1,  3,  7, 15, 15,  0, 15,  0,   //   4 fill WYGR
+   3, 12,  3, 12,  3, 12,  3, 12,   //   5 pairs 3/12
+   1,  3,  6, 12,  8, 12,  6,  3,   //   6 wave WYGR
+   8,  0,  8,  0,  1,  0,  1,  0,   //   7 police red/white
+   3,  6, 12,  9,  3,  6, 12,  9,   //   8 double chase WYGR
+   1,  0,  1,  0,  1,  0,  1,  0,   //   9 W strobe
+  15, 14, 12,  8,  0,  8,  0, 15,   //  10 drain WYGR
+   3,  0,  3,  0,  3,  0,  3,  0,   //  11 pair strobe 3
+   1,  3,  7, 15,  7,  3,  1,  0,   //  12 rise and fall WYGR
+   1,  0,  1,  0,  0,  0,  0,  0,   //  13 heartbeat 1
+   1,  0,  2,  0,  4,  0,  8,  0,   //  14 spaced chase WYGR
+   3, 14,  5, 15,  9,  6,  6,  8,   //  15 sparkle 1
+   1,  2,  3,  4,  5,  6,  7,  8,   //  16 count up
+   9,  6, 15,  0,  9,  6, 15,  0,   //  17 converge
+   1,  2,  8,  4,  1,  2,  8,  4,   //  18 chase WYRG
+   1,  2,  8,  4,  8,  2,  1,  2,   //  19 bounce WYRG
+  15, 15,  0,  0, 15, 15,  0,  0,   //  20 double hit
+   1,  3, 11, 15, 15,  0, 15,  0,   //  21 fill WYRG
+   5, 10,  5, 10,  5, 10,  5, 10,   //  22 pairs 5/10
+   1,  3, 10, 12,  4, 12, 10,  3,   //  23 wave WYRG
+   8,  1,  8,  1,  8,  1,  8,  1,   //  24 police swap
+   3, 10, 12,  5,  3, 10, 12,  5,   //  25 double chase WYRG
+   1, 14,  1, 14,  1, 14,  1, 14,   //  26 W against the rest
+  15, 14, 12,  4,  0,  4,  0, 15,   //  27 drain WYRG
+   5,  0,  5,  0,  5,  0,  5,  0,   //  28 pair strobe 5
+   1,  3, 11, 15, 11,  3,  1,  0,   //  29 rise and fall WYRG
+   2,  0,  2,  0,  0,  0,  0,  0,   //  30 heartbeat 2
+   1,  0,  2,  0,  8,  0,  4,  0,   //  31 spaced chase WYRG
+   5,  5,  2,  4, 15,  7,  6, 10,   //  32 sparkle 2
+   9, 10, 11, 12, 13, 14, 15,  0,   //  33 count high
+   6,  9, 15,  0,  6,  9, 15,  0,   //  34 expand
+   1,  4,  2,  8,  1,  4,  2,  8,   //  35 chase WGYR
+   1,  4,  2,  8,  2,  4,  1,  4,   //  36 bounce WGYR
+  15,  0,  0,  0, 15,  0,  0,  0,   //  37 downbeat
+   1,  5,  7, 15, 15,  0, 15,  0,   //  38 fill WGYR
+   9,  6,  9,  6,  9,  6,  9,  6,   //  39 pairs 9/6
+   1,  5,  6, 10,  8, 10,  6,  5,   //  40 wave WGYR
+  10,  0,  5,  0, 10,  0,  5,  0,   //  41 police cross
+   5,  6, 10,  9,  5,  6, 10,  9,   //  42 double chase WGYR
+   2,  0,  2,  0,  2,  0,  2,  0,   //  43 Y strobe
+  15, 14, 10,  8,  0,  8,  0, 15,   //  44 drain WGYR
+   9,  0,  9,  0,  9,  0,  9,  0,   //  45 pair strobe 9
+   1,  5,  7, 15,  7,  5,  1,  0,   //  46 rise and fall WGYR
+   4,  0,  4,  0,  0,  0,  0,  0,   //  47 heartbeat 4
+   1,  0,  4,  0,  2,  0,  8,  0,   //  48 spaced chase WGYR
+   8,  2, 14,  1,  5, 10, 10, 10,   //  49 sparkle 3
+   9,  9,  6,  6, 15, 15,  0,  0,   //  50 outer inner hold
+   1,  4,  8,  2,  1,  4,  8,  2,   //  51 chase WGRY
+   1,  4,  8,  2,  8,  4,  1,  4,   //  52 bounce WGRY
+  15,  0, 15,  0, 15, 15, 15,  0,   //  53 triplet tail
+   1,  5, 13, 15, 15,  0, 15,  0,   //  54 fill WGRY
+   3,  0, 12,  0,  3,  0, 12,  0,   //  55 pairs gap 3/12
+   1,  5, 12, 10,  2, 10, 12,  5,   //  56 wave WGRY
+   8,  8,  1,  1,  8,  8,  1,  1,   //  57 police hold
+   5, 12, 10,  3,  5, 12, 10,  3,   //  58 double chase WGRY
+   2, 13,  2, 13,  2, 13,  2, 13,   //  59 Y against the rest
+  15, 14, 10,  2,  0,  2,  0, 15,   //  60 drain WGRY
+   6,  0,  6,  0,  6,  0,  6,  0,   //  61 pair strobe 6
+   1,  5, 13, 15, 13,  5,  1,  0,   //  62 rise and fall WGRY
+   8,  0,  8,  0,  0,  0,  0,  0,   //  63 heartbeat 8
+   1,  0,  4,  0,  8,  0,  2,  0,   //  64 spaced chase WGRY
+  11, 13,  2, 13, 14, 15, 12,  3,   //  65 sparkle 4
+   1,  8,  2,  4,  1,  8,  2,  4,   //  66 chase WRYG
+   1,  8,  2,  4,  2,  8,  1,  8,   //  67 bounce WRYG
+  15,  0,  0, 15,  0,  0, 15,  0,   //  68 syncopated
+   1,  9, 11, 15, 15,  0, 15,  0,   //  69 fill WRYG
+   5,  0, 10,  0,  5,  0, 10,  0,   //  70 pairs gap 5/10
+   1,  9, 10,  6,  4,  6, 10,  9,   //  71 wave WRYG
+   2,  0,  2,  0,  4,  0,  4,  0,   //  72 amber/green
+   9, 10,  6,  5,  9, 10,  6,  5,   //  73 double chase WRYG
+   4,  0,  4,  0,  4,  0,  4,  0,   //  74 G strobe
+  15, 14,  6,  4,  0,  4,  0, 15,   //  75 drain WRYG
+  10,  0, 10,  0, 10,  0, 10,  0,   //  76 pair strobe 10
+   1,  9, 11, 15, 11,  9,  1,  0,   //  77 rise and fall WRYG
+  15,  0, 15,  0,  0,  0,  0,  0,   //  78 heartbeat 15
+   1,  0,  8,  0,  2,  0,  4,  0,   //  79 spaced chase WRYG
+  11,  9,  4, 15,  7,  6,  5, 10,   //  80 sparkle 5
+   1,  8,  4,  2,  1,  8,  4,  2,   //  81 chase WRGY
+   1,  8,  4,  2,  4,  8,  1,  8,   //  82 bounce WRGY
+  15, 15, 15,  0, 15,  0, 15,  0,   //  83 gallop
+   1,  9, 13, 15, 15,  0, 15,  0,   //  84 fill WRGY
+   9,  0,  6,  0,  9,  0,  6,  0,   //  85 pairs gap 9/6
+   1,  9, 12,  6,  2,  6, 12,  9,   //  86 wave WRGY
+   2,  4,  2,  4,  8,  1,  8,  1,   //  87 four-colour flash
+   9, 12,  6,  3,  9, 12,  6,  3,   //  88 double chase WRGY
+   4, 11,  4, 11,  4, 11,  4, 11,   //  89 G against the rest
+  15, 14,  6,  2,  0,  2,  0, 15,   //  90 drain WRGY
+  12,  0, 12,  0, 12,  0, 12,  0,   //  91 pair strobe 12
+   1,  9, 13, 15, 13,  9,  1,  0,   //  92 rise and fall WRGY
+   1,  0,  8,  0,  4,  0,  2,  0,   //  93 spaced chase WRGY
+   3,  6, 15, 15, 13,  5,  2,  2,   //  94 sparkle 6
+   0, 15,  0, 15, 15,  0, 15, 15,   //  95 offbeat
+   3,  3, 12, 12,  3,  3, 12, 12,   //  96 pairs hold 3/12
+   8,  0,  8,  0,  8,  0,  8,  0,   //  97 R strobe
+  15,  8,  2,  4, 11,  2, 10,  7,   //  98 sparkle 7
+  15,  0, 15, 15,  0, 15,  0,  0,   //  99 skip
+   5,  5, 10, 10,  5,  5, 10, 10,   // 100 pairs hold 5/10
 };
 const uint16_t SHOW_LEN = sizeof(SHOW_STEPS);
+const uint16_t PATTERN_COUNT = SHOW_LEN / PATTERN_STEPS;   // 100
+uint16_t partyPattern = 0;   // each party carries on from where the last one stopped
 bool showOn = false, showSavedAuto = false;
 uint16_t showStep = 0;
 uint32_t showT = 0;
@@ -184,7 +268,7 @@ bool partyLights(uint32_t now) {
   uint32_t eighth = six / 2;
   if (eighth == partyEighth) return false;
   partyEighth = eighth;
-  state = SHOW_STEPS[eighth % SHOW_LEN] | B_WT;   // the wind turbines keep spinning for the whole party
+  state = SHOW_STEPS[((uint32_t)partyPattern * PATTERN_STEPS + eighth) % SHOW_LEN] | B_WT;   // turbines keep spinning
   applyOutputs();
   return true;
 }
@@ -229,6 +313,8 @@ void stopParty(bool restore) {
   if (toneOn) { noTone(PIN_BUZ); toneOn = false; }
   if (!partyOn) return;
   partyOn = false;
+  // the next party starts on the pattern after the last one this party reached
+  partyPattern = (partyPattern + partyEighth / PATTERN_STEPS + 1) % PATTERN_COUNT;
   if (restore) { state = partySaved; autoMode = partySavedAuto; }
   applyOutputs();
   statusDue = true;

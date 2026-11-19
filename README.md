@@ -48,7 +48,7 @@ AUTOMATION
 
 - Auto Mode runs on the ESP32 (lights follow the LDR threshold), so it keeps working if the phone disconnects.
 
-- Show scene: a stage light show run by the ESP32 itself (no Bluetooth latency) at 128 BPM, 10 patterns of chases, strobes and flashes with the turbines spinning, looping until Stop show (which restores the city).
+- Show scene: a stage light show run by the ESP32 itself (no Bluetooth latency) at 128 BPM, 100 patterns of chases, strobes and flashes with the turbines spinning, looping until Stop show (which restores the city).
 
 - Party mode: a 1-minute song (composed by Lovable AI, or the built-in composer) plays on the ESP32 buzzer while the lights change every bar; the city is restored afterwards.
 
