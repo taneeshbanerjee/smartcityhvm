@@ -18,7 +18,8 @@
   a new step every half beat (~234 ms), 10 patterns of 2 bars each, looping until stopped.
   The wind turbines spin for the whole show. Any other command ends it and restores the city first.
 
-  PARTY MODE (1-minute song on the buzzer, lights flash to the beat):
+  PARTY MODE (1-minute song on the buzzer; the lights step through the 10 show patterns
+  on every half beat of the song, a new pattern every 2 bars, turbines on):
     MB:<60-180>       start a new song at this tempo (beats per minute)
     MA:<notes>        add up to 15 notes, 4 hex digits each: 2 = MIDI note
                       (00 = rest), 2 = length in 16th notes. e.g. MA:3C044004
@@ -73,16 +74,9 @@ uint16_t songCount = 0;
 uint16_t songBpm = 120;
 bool partyOn = false, toneOn = false;
 uint16_t partyIdx = 0;
-uint32_t partyNoteT = 0, partyNoteMs = 0, partySix = 0, partyBar = 0;
+uint32_t partyNoteT = 0, partyNoteMs = 0, partySix = 0, partyNoteSix = 0, partyEighth = 0;
 uint8_t partySaved = 0;
 bool partySavedAuto = false;
-// lights change every bar; the wind turbines keep spinning for the whole party
-const uint8_t PARTY_STEPS[] = {
-  B_WT | B_SL | B_RD,
-  B_WT | B_BL | B_GR,
-  B_WT | B_SL | B_BL | B_RD,
-  B_WT | B_GR | B_RD
-};
 
 // ---------- Show (stage light show) ----------
 // W = white street lights, Y = yellow building lights, G = green, R = red, A = all four, 0 = dark.
@@ -180,15 +174,23 @@ int hexByte(const String& v, int i) {
   return (int)strtol(t, nullptr, 16);
 }
 
+// Party lights: the show patterns, one step per half beat (two 16th notes) of the song. The step is
+// worked out from the song position (notes played + progress through this note), so the lights stay
+// locked to the music. Returns true when the lights changed.
+bool partyLights(uint32_t now) {
+  uint32_t el = now - partyNoteT;
+  if (el > partyNoteMs) el = partyNoteMs;
+  uint32_t six = partyNoteSix + (partyNoteMs ? el * songLen[partyIdx] / partyNoteMs : 0);
+  uint32_t eighth = six / 2;
+  if (eighth == partyEighth) return false;
+  partyEighth = eighth;
+  state = SHOW_STEPS[eighth % SHOW_LEN] | B_WT;   // the wind turbines keep spinning for the whole party
+  applyOutputs();
+  return true;
+}
+
 void playNote(uint16_t i) {
-  // a new bar every 16 sixteenths: step the party lights
-  uint32_t bar = partySix / 16;
-  if (i == 0 || bar != partyBar) {
-    partyBar = bar;
-    state = PARTY_STEPS[bar % sizeof(PARTY_STEPS)];
-    applyOutputs();
-    statusDue = true;
-  }
+  partyNoteSix = partySix;
   partySix += songLen[i];
   partyNoteMs = (uint32_t)songLen[i] * 15000UL / songBpm;   // 60000 / bpm / 4
   if (songNote[i] > 0) {
@@ -242,8 +244,11 @@ void startParty() {
   partyOn = true;
   partyIdx = 0;
   partySix = 0;
+  partyEighth = 0xFFFFFFFFUL;
   partyNoteT = millis();
   playNote(0);
+  partyLights(partyNoteT);
+  statusDue = true;
 }
 
 void handleCommand(String s) {
@@ -365,6 +370,7 @@ void loop() {
       toneOn = false;
     }
   }
+  bool partyStepped = partyOn && partyLights(now);
 
   // 2b) Show: next step on a fixed timeline, so status replies never delay or drift the beat
   bool showStepped = false;
@@ -387,9 +393,9 @@ void loop() {
     }
   }
 
-  // 4) send status. During the show the regular update goes out right after a light change,
+  // 4) send status. During the show or a party the regular update goes out right after a light change,
   //    so the time spent sending falls between steps and never delays the next one.
-  if (connected && (statusDue || (now - statT >= 1000 && (!showOn || showStepped)))) {
+  if (connected && (statusDue || (now - statT >= 1000 && (!(showOn || partyOn) || showStepped || partyStepped)))) {
     statT = now;
     statusDue = false;
     notifyLine(statusLine());

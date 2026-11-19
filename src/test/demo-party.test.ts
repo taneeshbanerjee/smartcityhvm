@@ -33,4 +33,15 @@ describe("demo mode party", () => {
     expect(last()).toMatchObject({ MU: false, AUTO: true });
     demo.disconnect();
   });
+
+  it("steps the lights through the show patterns on every half beat of the song", async () => {
+    const { SHOW_STEPS, showLights } = await import("@/lib/show");
+    const { demo, last } = await partyDemo([]);
+    const step = 30000 / composeBuiltInMotif(42).bpm;   // half a beat at the song's own tempo
+    const seen: string[] = [];
+    for (let i = 0; i < 8; i++) { const st = last(); seen.push(`${+st.SL!}${+st.BL!}${+st.GR!}${+st.RD!}`); vi.advanceTimersByTime(step); }
+    const want = SHOW_STEPS.slice(0, 8).map((m) => { const l = showLights(m); return `${+l.SL}${+l.BL}${+l.GR}${+l.RD}`; });
+    expect(seen).toEqual(want);
+    demo.disconnect();
+  });
 });

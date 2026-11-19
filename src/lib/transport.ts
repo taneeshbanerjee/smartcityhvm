@@ -199,11 +199,8 @@ export function connectDemo(h: Handlers): Transport {
   let thr = 1500;
   let t = 0;
   let closed = false;
-  // party mode, simulated like the firmware: lights change every bar, then the city is restored
-  const PARTY = [
-    { SL: true, BL: false, GR: false, RD: true }, { SL: false, BL: true, GR: true, RD: false },
-    { SL: true, BL: true, GR: false, RD: true }, { SL: false, BL: false, GR: true, RD: true },
-  ];
+  // party mode, simulated like the firmware: the show patterns step on every half beat of the song
+  // (a new pattern every 2 bars), turbines on, then the city is restored
   let bpm = 120;
   let songSixteenths = 0;
   // stage show, simulated like the firmware: same patterns and tempo, turbines on, city restored afterwards
@@ -239,16 +236,16 @@ export function connectDemo(h: Handlers): Transport {
     stopParty(true);
     stopShow(true);
     const saved = { ...s };
-    const bars = Math.ceil(songSixteenths / 16);
-    let bar = 0;
+    const halfBeats = Math.ceil(songSixteenths / 2);
+    let half = 0;
     const step = () => {
       if (closed) return;
-      if (bar >= bars) { stopParty(true); h.onLine(formatStatus(s)); return; }
-      Object.assign(s, PARTY[bar % PARTY.length], { WT: true, AUTO: false, MU: true });
-      bar++;
+      if (half >= halfBeats) { stopParty(true); h.onLine(formatStatus(s)); return; }
+      Object.assign(s, showLights(SHOW_STEPS[half % SHOW_STEPS.length] ?? 0), { WT: true, AUTO: false, MU: true });
+      half++;
       h.onLine(formatStatus(s));
     };
-    party = { timer: setInterval(step, (16 * 15000) / bpm), saved };
+    party = { timer: setInterval(step, 30000 / bpm), saved };
     step();
   };
   const emit = () => setTimeout(() => { if (!closed) h.onLine(formatStatus(s)); }, 120);
