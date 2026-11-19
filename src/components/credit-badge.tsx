@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 
 const DISMISS_KEY = "smartcity-credit-dismissed";
 
-/** Small "Edited by Tanish" credit in the bottom-left corner; ✕ hides it for this browser session. */
+/** Small "Edited by Taneesh" credit in the bottom-left corner; ✕ hides it for this browser session. */
 export function CreditBadge() {
   const [visible, setVisible] = useState(false);
 
@@ -22,15 +22,15 @@ export function CreditBadge() {
   return (
     <div
       role="note"
-      aria-label="Edited by Tanish"
+      aria-label="Edited by Taneesh"
       className="fixed bottom-3 left-3 z-40 flex items-center gap-1 rounded-md border border-border/70 bg-background/90 py-1 pr-1 pl-2.5 text-xs font-medium text-foreground shadow-card backdrop-blur-xl print:hidden"
       style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <span>Edited by Tanish</span>
+      <span>Edited by Taneesh</span>
       <button
         type="button"
         onClick={dismiss}
-        aria-label="Close the Edited by Tanish badge"
+        aria-label="Close the Edited by Taneesh badge"
         className="grid h-6 w-6 place-items-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
       >
         <X size={14} />

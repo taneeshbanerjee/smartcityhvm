@@ -4,14 +4,14 @@ import { CreditBadge } from "@/components/credit-badge";
 
 afterEach(() => { cleanup(); sessionStorage.clear(); });
 
-describe("Edited by Tanish badge", () => {
+describe("Edited by Taneesh badge", () => {
   it("shows the credit and stays closed for the session after ✕", () => {
     const view = render(<CreditBadge />);
-    expect(screen.getByText("Edited by Tanish")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close the Edited by Tanish badge" }));
-    expect(screen.queryByText("Edited by Tanish")).toBeNull();
+    expect(screen.getByText("Edited by Taneesh")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close the Edited by Taneesh badge" }));
+    expect(screen.queryByText("Edited by Taneesh")).toBeNull();
     view.unmount();
     render(<CreditBadge />);
-    expect(screen.queryByText("Edited by Tanish")).toBeNull();
+    expect(screen.queryByText("Edited by Taneesh")).toBeNull();
   });
 });
