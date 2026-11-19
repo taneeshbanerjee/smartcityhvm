@@ -8,7 +8,7 @@
   COMMANDS (text, each ends with a new line):
     SL:1/0  street lights (white LEDs)      BL:1/0  building lights (yellow LEDs)
     GR:1/0  green LEDs                      RD:1/0  red beacons
-    WT:1/0  wind turbine motor              HT:1/0  water turbine motor
+    WT:1/0  wind turbines (both motor outputs of the L298N together)
     AUTO:1/0  lights follow the LDR         THR:<0-4095>  dark/light threshold
     ALL:0   everything off                  GET     send status now
     SCENE:day|night|eco|show
@@ -20,7 +20,7 @@
     MP:1 / MP:0       start / stop the party (the city returns to how it was)
 
   STATUS (sent about once a second and after every command):
-    ST:SL=1,BL=0,GR=1,RD=0,WT=1,HT=0,AUTO=1,MU=0;LDR=732
+    ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0;LDR=732
     (MU=1 while the party music is playing)
 
   BUZZER: passive buzzer + -> 100 ohm resistor -> GPIO23, buzzer - -> GND.
@@ -44,15 +44,17 @@ const uint8_t PIN_SL = 13;    // street lights   (white LED)
 const uint8_t PIN_BL = 12;    // building lights (yellow LED)
 const uint8_t PIN_GR = 14;    // green LED
 const uint8_t PIN_RD = 15;    // red LED
-const uint8_t PIN_WT_A = 27;  // motor driver IN1  -> wind turbine motor (OUT1/OUT2)
-const uint8_t PIN_WT_B = 26;  // motor driver IN2
-const uint8_t PIN_HT_A = 25;  // motor driver IN3  -> water turbine motor (OUT3/OUT4)
-const uint8_t PIN_HT_B = 33;  // motor driver IN4
+// The model has wind turbines only (no water turbine). The WT command drives BOTH motor channels
+// of the L298N, so the fans spin whichever output (OUT1/OUT2 or OUT3/OUT4) they are wired to.
+const uint8_t PIN_M1_A = 27;  // motor driver IN1  -> motor channel 1 (OUT1/OUT2)
+const uint8_t PIN_M1_B = 26;  // motor driver IN2
+const uint8_t PIN_M2_A = 25;  // motor driver IN3  -> motor channel 2 (OUT3/OUT4)
+const uint8_t PIN_M2_B = 33;  // motor driver IN4
 const uint8_t PIN_LDR  = 32;  // LDR junction: 3V3 -> LDR -> GPIO32 -> resistor -> GND
 const uint8_t PIN_BUZ  = 23;  // passive buzzer (party music)
 
 // ---------- State ----------
-enum : uint8_t { B_SL = 1, B_BL = 2, B_GR = 4, B_RD = 8, B_WT = 16, B_HT = 32 };
+enum : uint8_t { B_SL = 1, B_BL = 2, B_GR = 4, B_RD = 8, B_WT = 16 };
 uint8_t state = 0;
 bool autoMode = false;
 int threshold = 1500;      // LDR reading below this = dark
@@ -69,12 +71,12 @@ uint16_t partyIdx = 0;
 uint32_t partyNoteT = 0, partyNoteMs = 0, partySix = 0, partyBar = 0;
 uint8_t partySaved = 0;
 bool partySavedAuto = false;
-// lights change every bar; both turbines keep spinning for the whole party
+// lights change every bar; the wind turbines keep spinning for the whole party
 const uint8_t PARTY_STEPS[] = {
-  B_WT | B_HT | B_SL | B_RD,
-  B_WT | B_HT | B_BL | B_GR,
-  B_WT | B_HT | B_SL | B_BL | B_RD,
-  B_WT | B_HT | B_GR | B_RD
+  B_WT | B_SL | B_RD,
+  B_WT | B_BL | B_GR,
+  B_WT | B_SL | B_BL | B_RD,
+  B_WT | B_GR | B_RD
 };
 
 bool showOn = false;
@@ -83,10 +85,9 @@ uint32_t showT = 0;
 const uint8_t SHOW_STEPS[] = {
   B_WT,
   B_WT | B_GR,
-  B_WT | B_GR | B_HT,
-  B_WT | B_GR | B_HT | B_SL,
-  B_WT | B_GR | B_HT | B_SL | B_BL,
-  B_WT | B_GR | B_HT | B_SL | B_BL | B_RD
+  B_WT | B_GR | B_SL,
+  B_WT | B_GR | B_SL | B_BL,
+  B_WT | B_GR | B_SL | B_BL | B_RD
 };
 
 BLEServer* pServer = nullptr;
@@ -116,8 +117,9 @@ void applyOutputs() {
   digitalWrite(PIN_BL, isOn(B_BL));
   digitalWrite(PIN_GR, isOn(B_GR));
   digitalWrite(PIN_RD, isOn(B_RD));
-  digitalWrite(PIN_WT_A, isOn(B_WT)); digitalWrite(PIN_WT_B, LOW);
-  digitalWrite(PIN_HT_A, isOn(B_HT)); digitalWrite(PIN_HT_B, LOW);
+  // wind turbines: both motor channels together, always the same direction
+  digitalWrite(PIN_M1_A, isOn(B_WT)); digitalWrite(PIN_M1_B, LOW);
+  digitalWrite(PIN_M2_A, isOn(B_WT)); digitalWrite(PIN_M2_B, LOW);
 }
 
 int readLdr() {
@@ -129,9 +131,9 @@ int readLdr() {
 String statusLine() {
   char b[110];
   snprintf(b, sizeof(b),
-           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,HT=%d,AUTO=%d,MU=%d;LDR=%d\n",
+           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,AUTO=%d,MU=%d;LDR=%d\n",
            isOn(B_SL), isOn(B_BL), isOn(B_GR), isOn(B_RD),
-           isOn(B_WT), isOn(B_HT), autoMode ? 1 : 0, partyOn ? 1 : 0, lastLdr);
+           isOn(B_WT), autoMode ? 1 : 0, partyOn ? 1 : 0, lastLdr);
   return String(b);
 }
 
@@ -227,15 +229,14 @@ void handleCommand(String s) {
   else if (k == "GR")   { setBit(B_GR, n != 0); }
   else if (k == "RD")   { setBit(B_RD, n != 0); }
   else if (k == "WT")   { setBit(B_WT, n != 0); }
-  else if (k == "HT")   { setBit(B_HT, n != 0); }
   else if (k == "AUTO") { autoMode = (n != 0); }
   else if (k == "THR")  { threshold = constrain(n, 0, 4095); }
   else if (k == "ALL")  { state = 0; autoMode = false; }
   else if (k == "SCENE") {
     autoMode = false;
-    if      (v == "DAY")   state = B_GR | B_WT | B_HT;
+    if      (v == "DAY")   state = B_GR | B_WT;
     else if (v == "NIGHT") state = B_SL | B_BL | B_RD | B_WT;
-    else if (v == "ECO")   state = B_SL | B_GR | B_WT | B_HT;
+    else if (v == "ECO")   state = B_SL | B_GR | B_WT;
     else if (v == "SHOW")  { state = 0; showOn = true; showStep = 0; showT = millis() - 900; }
   }
   Serial.print("CMD: "); Serial.println(s);
@@ -263,7 +264,7 @@ class ServerCallbacks : public BLEServerCallbacks {
 void setup() {
   Serial.begin(115200);
 
-  const uint8_t outs[] = { PIN_SL, PIN_BL, PIN_GR, PIN_RD, PIN_WT_A, PIN_WT_B, PIN_HT_A, PIN_HT_B };
+  const uint8_t outs[] = { PIN_SL, PIN_BL, PIN_GR, PIN_RD, PIN_M1_A, PIN_M1_B, PIN_M2_A, PIN_M2_B };
   for (uint8_t p : outs) { pinMode(p, OUTPUT); digitalWrite(p, LOW); }
   pinMode(PIN_BUZ, OUTPUT); digitalWrite(PIN_BUZ, LOW);
   analogSetPinAttenuation(PIN_LDR, ADC_11db);

@@ -32,7 +32,9 @@ export function PlanCityPreview({ state, actions, title }: { state: CityState; a
   const devicesKey = JSON.stringify(devices);
   useEffect(() => {
     if (!loaded) return;
-    post({ type: "devices", devices: JSON.parse(devicesKey) as PreviewDevices });
+    // The 3D model's turbine wheels follow the one wind turbines switch, like the real model.
+    const next = JSON.parse(devicesKey) as PreviewDevices;
+    post({ type: "devices", devices: { ...next, HT: next.WT } });
     post({ type: "state", theme: view });
   }, [loaded, devicesKey, view, post]);
 

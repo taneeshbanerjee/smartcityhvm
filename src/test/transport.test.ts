@@ -74,3 +74,27 @@ describe("Transport diagnostics", () => {
     expect(h.diagnostics.at(-1)?.service).toBe("not checked");
   });
 });
+describe("one wind turbines switch (no water turbine)", () => {
+  it("parses the firmware status without a water turbine and maps voice commands to WT", async () => {
+    const { parseStatus, parseVoice, initialState } = await import("@/lib/smartcity");
+    expect(parseStatus("ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=0,MU=0;LDR=732")).toEqual({ SL: true, BL: false, GR: true, RD: false, WT: true, AUTO: false, MU: false, LDR: 732 });
+    expect("HT" in initialState).toBe(false);
+    expect(parseVoice("turn on the turbine")?.cmds).toEqual(["WT:1"]);
+    expect(parseVoice("wind turbine off")?.cmds).toEqual(["WT:0"]);
+    expect(parseVoice("fan on")?.cmds).toEqual(["WT:1"]);
+  });
+
+  it("demo scenes match the ESP32: turbines run in day, night and eco", async () => {
+    vi.useFakeTimers();
+    const { connectDemo } = await import("@/lib/transport");
+    const { parseStatus } = await import("@/lib/smartcity");
+    const lines: string[] = [];
+    const demo = connectDemo({ onLine: (l) => { lines.push(l); }, onDisconnect: () => {}, onReconnected: () => {} });
+    const last = () => parseStatus([...lines].reverse().find((l) => l.startsWith("ST:"))!)!;
+    for (const [scene, want] of [["day", { SL: false, BL: false, GR: true, RD: false, WT: true }], ["night", { SL: true, BL: true, GR: false, RD: true, WT: true }], ["eco", { SL: true, BL: false, GR: true, RD: false, WT: true }]] as const) {
+      await demo.send(`SCENE:${scene}`); vi.advanceTimersByTime(200);
+      expect(last()).toMatchObject(want);
+    }
+    demo.disconnect(); vi.useRealTimers();
+  });
+});

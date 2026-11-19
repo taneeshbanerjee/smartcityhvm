@@ -5,7 +5,7 @@ export type PreviewDevices = Record<SwitchKey, boolean>;
 
 /** The device states the city would have after applying the plan to its reported state. */
 export function planPreviewDevices(state: CityState, actions: PlanAction[]): PreviewDevices {
-  const devices: PreviewDevices = { SL: state.SL, BL: state.BL, GR: state.GR, RD: state.RD, WT: state.WT, HT: state.HT };
+  const devices: PreviewDevices = { SL: state.SL, BL: state.BL, GR: state.GR, RD: state.RD, WT: state.WT };
   for (const { device, enabled } of actions) if (device !== "AUTO") devices[device] = enabled;
   return devices;
 }

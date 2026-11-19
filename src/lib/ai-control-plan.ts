@@ -1,6 +1,6 @@
 import type { CityState } from "@/lib/smartcity";
 
-export const PLAN_DEVICE_KEYS = ["SL", "BL", "GR", "RD", "WT", "HT", "AUTO"] as const;
+export const PLAN_DEVICE_KEYS = ["SL", "BL", "GR", "RD", "WT", "AUTO"] as const;
 export type PlanDevice = (typeof PLAN_DEVICE_KEYS)[number];
 
 export const PLAN_DEVICES: Record<PlanDevice, string> = {
@@ -8,8 +8,7 @@ export const PLAN_DEVICES: Record<PlanDevice, string> = {
   BL: "Building lights",
   GR: "Green status lights",
   RD: "Red beacons",
-  WT: "Wind turbine",
-  HT: "Water turbine",
+  WT: "Wind turbines",
   AUTO: "Automatic lighting",
 };
 export type PlanAction = { device: PlanDevice; enabled: boolean };

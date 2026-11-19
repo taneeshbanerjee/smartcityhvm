@@ -222,7 +222,7 @@ export function connectDemo(h: Handlers): Transport {
     const step = () => {
       if (closed) return;
       if (bar >= bars) { stopParty(true); h.onLine(formatStatus(s)); return; }
-      Object.assign(s, PARTY[bar % PARTY.length], { WT: true, HT: true, AUTO: false, MU: true });
+      Object.assign(s, PARTY[bar % PARTY.length], { WT: true, AUTO: false, MU: true });
       bar++;
       h.onLine(formatStatus(s));
     };
@@ -252,16 +252,17 @@ export function connectDemo(h: Handlers): Transport {
       if (k === "MB" || k === "MP") { setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60); emit(); return; }
       if (k in s && (v === "0" || v === "1")) (s as any)[k] = v === "1";
       else if (k === "THR") thr = Number(v) || 0;
-      else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT", "HT"] as const).forEach((x) => (s[x] = false));
+      else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT"] as const).forEach((x) => (s[x] = false));
       else if (k === "SCENE") {
+        // same scenes as the ESP32 firmware (SL, BL, GR, RD, WT); "show" starts dark like the firmware
         const p: Record<string, boolean[]> = {
-          day: [false, false, true, false, true, true],
-          night: [true, true, false, true, false, false],
-          eco: [true, false, true, false, true, false],
-          show: [true, true, true, true, true, true],
+          day: [false, false, true, false, true],
+          night: [true, true, false, true, true],
+          eco: [true, false, true, false, true],
+          show: [false, false, false, false, false],
         };
         const arr = p[v];
-        if (arr) (["SL", "BL", "GR", "RD", "WT", "HT"] as const).forEach((x, i) => (s[x] = !!arr[i]));
+        if (arr) (["SL", "BL", "GR", "RD", "WT"] as const).forEach((x, i) => (s[x] = !!arr[i]));
       }
       applyAuto();
       setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60);

@@ -17,8 +17,7 @@ const commands = [
   ["BL:1 / BL:0", "Building lights on / off"],
   ["GR:1 / GR:0", "Green status lights on / off"],
   ["RD:1 / RD:0", "Red beacons on / off"],
-  ["WT:1 / WT:0", "Wind turbine on / off"],
-  ["HT:1 / HT:0", "Water turbine on / off"],
+  ["WT:1 / WT:0", "Wind turbines on / off (drives both motor outputs of the L298N together)."],
   ["AUTO:1 / AUTO:0", "Enable / disable sensor-controlled street and building lights."],
   [
     "THR:1500",
@@ -110,7 +109,7 @@ export function TestingTools({
           <section className="space-y-2 border-t border-border pt-4">
             <h3 className="font-semibold">Device replies</h3>
             <code className="block break-all rounded-md bg-muted p-3 text-xs">
-              ST:SL=1,BL=0,GR=0,RD=0,WT=0,HT=0,AUTO=0,MU=0;LDR=732
+              ST:SL=1,BL=0,GR=0,RD=0,WT=0,AUTO=0,MU=0;LDR=732
             </code>
             <p className="text-sm text-muted-foreground">
               Output, Auto and MU (party music) values: 0 = off, 1 = on. LDR: sensor reading. Other

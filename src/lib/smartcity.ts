@@ -4,19 +4,20 @@ export const NUS_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 export const NUS_WRITE = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 export const NUS_NOTIFY = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-export type SwitchKey = "SL" | "BL" | "GR" | "RD" | "WT" | "HT";
-export const SWITCH_KEYS: SwitchKey[] = ["SL", "BL", "GR", "RD", "WT", "HT"];
+export type SwitchKey = "SL" | "BL" | "GR" | "RD" | "WT";
+export const SWITCH_KEYS: SwitchKey[] = ["SL", "BL", "GR", "RD", "WT"];
 
 export interface CityState {
   SL: boolean; BL: boolean; GR: boolean; RD: boolean;
-  WT: boolean; HT: boolean; AUTO: boolean;
+  /** Wind turbines: the ESP32 drives both motor outputs together. */
+  WT: boolean; AUTO: boolean;
   /** Party music playing on the ESP32 buzzer. */
   MU: boolean;
   LDR: number | null;
 }
 
 export const initialState: CityState = {
-  SL: false, BL: false, GR: false, RD: false, WT: false, HT: false, AUTO: false, MU: false,
+  SL: false, BL: false, GR: false, RD: false, WT: false, AUTO: false, MU: false,
   LDR: null,
 };
 
@@ -48,7 +49,7 @@ export function parseStatus(line: string): Partial<CityState> | null {
 
 export function formatStatus(s: CityState): string {
   const b = (x: boolean) => (x ? 1 : 0);
-  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},HT=${b(s.HT)},AUTO=${b(s.AUTO)},MU=${b(s.MU)};LDR=${Math.round(s.LDR ?? 0)}`;
+  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},AUTO=${b(s.AUTO)},MU=${b(s.MU)};LDR=${Math.round(s.LDR ?? 0)}`;
 }
 
 /** Map spoken phrase to commands. Returns null if not understood. */
@@ -65,8 +66,7 @@ export function parseVoice(text: string): { cmds: string[]; reply: string; show?
     [/building/, "BL", "building lights"],
     [/green/, "GR", "green lights"],
     [/red|beacon/, "RD", "red beacons"],
-    [/wind/, "WT", "wind turbine"],
-    [/water turbine|hydro/, "HT", "water turbine"],
+    [/wind|turbine|fan/, "WT", "wind turbines"],
   ];
   for (const [re, k, name] of map) {
     if (re.test(t) && (on || off)) return { cmds: [`${k}:${on ? 1 : 0}`], reply: `${name} ${on ? "on" : "off"}` };

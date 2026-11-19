@@ -19,9 +19,9 @@ describe("demo mode party", () => {
   it("flashes the lights for one minute, then restores the city exactly", async () => {
     const { demo, last } = await partyDemo(["SL:1", "GR:1"]);
     vi.advanceTimersByTime(10_000);
-    expect(last()).toMatchObject({ MU: true, WT: true, HT: true, AUTO: false });
+    expect(last()).toMatchObject({ MU: true, WT: true, AUTO: false });
     vi.advanceTimersByTime(52_000);
-    expect(last()).toMatchObject({ MU: false, SL: true, BL: false, GR: true, RD: false, WT: false, HT: false, AUTO: false });
+    expect(last()).toMatchObject({ MU: false, SL: true, BL: false, GR: true, RD: false, WT: false, AUTO: false });
     demo.disconnect();
   });
 

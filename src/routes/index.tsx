@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner";
 import {
   Bluetooth, BluetoothOff, Building2, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, Waves, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost, PartyPopper, Scissors,
+  Moon, Power, Radio, Sparkles, Sun, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost, PartyPopper, Scissors,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
@@ -35,8 +35,8 @@ interface LogItem { id: number; dir: "tx" | "rx" | "info"; text: string; time: s
 type ModelControl = { channel: "smartcity-model-control"; version: 1; type: "state"; theme?: "night" | "day"; angle?: number; presentation?: "background" | "fullscreen" };
 
 const SHOW_STEPS = [
-  ["SL:1", "BL:0", "GR:1", "RD:0"], ["WT:1", "RD:1"], ["BL:1", "SL:0", "HT:1"],
-  ["GR:0"], ["SL:1", "RD:0", "WT:0"], ["BL:0", "GR:1", "HT:0", "RD:1"],
+  ["SL:1", "BL:0", "GR:1", "RD:0"], ["WT:1", "RD:1"], ["BL:1", "SL:0"],
+  ["GR:0"], ["SL:1", "RD:0", "WT:0"], ["BL:0", "GR:1", "RD:1"],
 ];
 
 function Index() {
@@ -378,9 +378,8 @@ function Index() {
         </Card>
 
         <Card title="Power" icon={<Zap size={18} />}>
-          <div className="grid grid-cols-2 gap-3">
-            <Tile label="Wind turbine" icon={<Fan className={state.WT ? "animate-spin" : ""} />} on={state.WT} disabled={disabled} onClick={() => toggle("WT")} />
-            <Tile label="Water turbine" icon={<Waves />} on={state.HT} disabled={disabled} onClick={() => toggle("HT")} />
+          <div className="grid gap-3">
+            <Tile label="Wind turbines" icon={<Fan className={state.WT ? "animate-spin" : ""} />} on={state.WT} disabled={disabled} onClick={() => toggle("WT")} />
           </div>
         </Card>
 

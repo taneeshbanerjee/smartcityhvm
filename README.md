@@ -20,7 +20,7 @@ UI
 
 - Connection chip: Disconnected / Connecting / Connected with the device name.
 
-- Cards: Lighting (Street lights, Building lights, Green status LEDs, Red beacons), Power (Wind turbine motor, Water turbine motor), Sensors (LDR day/night gauge), Scenes (Day, Night, Eco, Show), AI Control Plan, Party Mode, Auto Mode toggle with a light-threshold slider, and a red "ALL OFF" button.
+- Cards: Lighting (Street lights, Building lights, Green status LEDs, Red beacons), Power (one Wind turbines switch; the model has no water turbine), Sensors (LDR day/night gauge), Scenes (Day, Night, Eco, Show), AI Control Plan, Party Mode, Auto Mode toggle with a light-threshold slider, and a red "ALL OFF" button.
 
 - Activity log drawer with recent commands and replies. Footer: "Project by " + ORG_NAME.
 
@@ -32,9 +32,9 @@ BLUETOOTH (Nordic UART service)
 
 - Connect button (user gesture) uses requestDevice with filters namePrefix "HVM-SmartCity" and that service, with optionalServices set. Offer "Show all devices" as a fallback.
 
-- Send newline-terminated commands: SL:1/0, BL:1/0, GR:1/0, RD:1/0, WT:1/0, HT:1/0, AUTO:1/0, THR:<0-4095>, ALL:0, SCENE:day|night|eco|show, GET, and for party mode MB:<bpm>, MA:<notes>, MP:1/0.
+- Send newline-terminated commands: SL:1/0, BL:1/0, GR:1/0, RD:1/0, WT:1/0 (wind turbines: both L298N motor outputs together), AUTO:1/0, THR:<0-4095>, ALL:0, SCENE:day|night|eco|show, GET, and for party mode MB:<bpm>, MA:<notes>, MP:1/0.
 
-- Receive status lines like ST:SL=1,BL=0,GR=1,RD=0,WT=1,HT=0,AUTO=1,MU=0;LDR=732 (MU=1 while party music plays). Buffer incoming chunks until a newline, then parse; ignore malformed lines safely.
+- Receive status lines like ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0;LDR=732 (MU=1 while party music plays). Buffer incoming chunks until a newline, then parse; ignore malformed lines safely.
 
 - Use a sequential write queue (avoid "GATT operation already in progress"), prefer writeValueWithoutResponse, fall back to writeValue.
 
@@ -56,7 +56,7 @@ AUTOMATION
 
 VOICE
 
-- Mic button using SpeechRecognition/webkitSpeechRecognition, lang "en-IN", hidden if unsupported. Understand "street lights on", "night mode", "start water turbine", "turn off wind turbine", "all off", "show mode". Reply with speechSynthesis (en-IN), show the transcript, and handle mic-permission errors and the need for internet.
+- Mic button using SpeechRecognition/webkitSpeechRecognition, lang "en-IN", hidden if unsupported. Understand "street lights on", "night mode", "start the turbines", "turn off wind turbine", "all off", "show mode". Reply with speechSynthesis (en-IN), show the transcript, and handle mic-permission errors and the need for internet.
 
 
 
@@ -66,7 +66,7 @@ PWA
 
 ## ESP32 wiring and firmware
 
-The firmware is `public/esp32-code/HVM_SmartCity_ESP32.ino` (also on the app's **ESP32 code** page). Board: **ESP32 Dev Module**, ESP32 Arduino core 2.0.x or 3.x; no extra libraries. Pins follow `circuit_diagram.pdf`:
+The firmware is `public/esp32-code/HVM_SmartCity_ESP32.ino` (also on the app's **ESP32 code** page). Board: **ESP32 Dev Module**, ESP32 Arduino core 2.0.x or 3.x; no extra libraries. Pins follow `circuit_diagram.pdf`. The model has no water turbine: the single `WT` (Wind turbines) command drives both motor channels together, so the fans spin whichever L298N output they are wired to.
 
 | Part | ESP32 pin |
 |---|---|
@@ -74,8 +74,8 @@ The firmware is `public/esp32-code/HVM_SmartCity_ESP32.ino` (also on the app's *
 | Building lights (yellow LED) | D12 |
 | Green status LED | D14 |
 | Red beacon LED | D15 |
-| Wind turbine motor (L298N IN1 / IN2) | D27 / D26 |
-| Water turbine motor (L298N IN3 / IN4) | D25 / D33 |
+| Wind turbines, motor channel 1 (L298N IN1 / IN2) | D27 / D26 |
+| Wind turbines, motor channel 2 (L298N IN3 / IN4) | D25 / D33 |
 | LDR (3V3 → LDR → D32 → resistor → GND) | D32 |
 | Party buzzer (passive; + via 100 Ω) | D23 |
 
