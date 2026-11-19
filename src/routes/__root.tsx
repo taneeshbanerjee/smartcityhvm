@@ -16,6 +16,7 @@ import { ORG_NAME } from "../lib/smartcity";
 import { Toaster } from "../components/ui/sonner";
 import { registerSW } from "../lib/sw-register";
 import { InstallNotice } from "../components/install-notice";
+import { CreditBadge } from "../components/credit-badge";
 
 function NotFoundComponent() {
   return (
@@ -130,6 +131,7 @@ function RootComponent() {
       <InstallNotice />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <CreditBadge />
       <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );
