@@ -1,5 +1,5 @@
-/** Pages where the credit badge would cover controls or content: game, 3D, template, circuit diagram, launch video, ESP32 code. */
-const HIDDEN_ON = ["/game", "/model", "/heading-board", "/hydro-dam-template", "/circuit-diagram", "/launch-video", "/esp32-code"];
+/** The credit badge only appears on the home page. */
+const SHOWN_ON = ["/"];
 
 /** Anything a person presses like a button: buttons, button-style links, switches, tabs and form buttons. */
 export const BUTTON_SELECTOR = [
@@ -9,5 +9,5 @@ export const BUTTON_SELECTOR = [
 
 export function showCreditBadgeOn(pathname: string): boolean {
   const path = pathname.replace(/\/+$/, "") || "/";
-  return !HIDDEN_ON.includes(path);
+  return SHOWN_ON.includes(path);
 }

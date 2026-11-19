@@ -16,9 +16,11 @@ describe("Edited by Taneesh badge", () => {
     expect(screen.queryByText("Edited by Taneesh")).toBeNull();
   });
 
-  it("is hidden on the game, 3D, hydro dam template, circuit diagram, launch video and ESP32 code pages, shown everywhere else", () => {
-    for (const path of ["/game", "/model", "/heading-board", "/hydro-dam-template", "/circuit-diagram", "/launch-video", "/esp32-code", "/game/"]) expect(showCreditBadgeOn(path)).toBe(false);
-    for (const path of ["/", "/voice-agent"]) expect(showCreditBadgeOn(path)).toBe(true);
+  it("appears only on the home page", () => {
+    for (const path of ["/game", "/model", "/heading-board", "/hydro-dam-template", "/circuit-diagram", "/launch-video", "/esp32-code", "/voice-agent", "/game/"]) {
+      expect(showCreditBadgeOn(path)).toBe(false);
+    }
+    expect(showCreditBadgeOn("/")).toBe(true);
     render(<CreditBadge pathname="/game" />);
     expect(screen.queryByText("Edited by Taneesh")).toBeNull();
   });
