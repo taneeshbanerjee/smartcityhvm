@@ -32,8 +32,9 @@ const commands = [
   ["SCENE:eco", "Request Eco scene."],
   [
     "SCENE:show",
-    "Request Show scene. The app then cycles individual commands every 1.5 seconds; Stop show ends the cycle without turning outputs off.",
+    "Start the stage light show. The ESP32 runs it itself (no Bluetooth delay): 128 BPM, a new step every half beat, 10 patterns, turbines on, looping until stopped.",
   ],
+  ["SHOW:0", "Stop the show; the city returns to how it was before. Any other command also ends the show first."],
   ["MB:120", "Start a new party song at this tempo (60–180 BPM)."],
   ["MA:3C044004", "Add up to 15 song notes, 4 hex digits each: MIDI note (00 = rest), then length in 16th notes."],
   ["MP:1 / MP:0", "Start / stop party mode: the buzzer plays the song and the lights flash each bar, then the city is restored."],
@@ -109,10 +110,10 @@ export function TestingTools({
           <section className="space-y-2 border-t border-border pt-4">
             <h3 className="font-semibold">Device replies</h3>
             <code className="block break-all rounded-md bg-muted p-3 text-xs">
-              ST:SL=1,BL=0,GR=0,RD=0,WT=0,AUTO=0,MU=0;LDR=732
+              ST:SL=1,BL=0,GR=0,RD=0,WT=0,AUTO=0,MU=0,SH=0;LDR=732
             </code>
             <p className="text-sm text-muted-foreground">
-              Output, Auto and MU (party music) values: 0 = off, 1 = on. LDR: sensor reading. Other
+              Output, Auto, MU (party music) and SH (show) values: 0 = off, 1 = on. LDR: sensor reading. Other
               replies, including OK acknowledgements, appear in the Activity log.
             </p>
             <p className="text-sm text-muted-foreground">

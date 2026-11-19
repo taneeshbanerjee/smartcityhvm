@@ -13,15 +13,17 @@ export interface CityState {
   WT: boolean; AUTO: boolean;
   /** Party music playing on the ESP32 buzzer. */
   MU: boolean;
+  /** Stage light show running on the ESP32. */
+  SH: boolean;
   LDR: number | null;
 }
 
 export const initialState: CityState = {
-  SL: false, BL: false, GR: false, RD: false, WT: false, AUTO: false, MU: false,
+  SL: false, BL: false, GR: false, RD: false, WT: false, AUTO: false, MU: false, SH: false,
   LDR: null,
 };
 
-/** Parse "ST:SL=1,BL=0,...,AUTO=1,MU=0;LDR=732". Returns null if malformed. */
+/** Parse "ST:SL=1,BL=0,...,AUTO=1,MU=0,SH=0;LDR=732". Returns null if malformed. */
 export function parseStatus(line: string): Partial<CityState> | null {
   const t = line.trim();
   if (!t.startsWith("ST:")) return null;
@@ -33,7 +35,7 @@ export function parseStatus(line: string): Partial<CityState> | null {
     if (!k || v === undefined) continue;
     const key = k.trim().toUpperCase();
     const val = v.trim();
-    if ((SWITCH_KEYS as string[]).includes(key) || key === "AUTO" || key === "MU") {
+    if ((SWITCH_KEYS as string[]).includes(key) || key === "AUTO" || key === "MU" || key === "SH") {
       if (val !== "0" && val !== "1") continue;
       (out as Record<string, boolean>)[key] = val === "1";
       any = true;
@@ -49,7 +51,7 @@ export function parseStatus(line: string): Partial<CityState> | null {
 
 export function formatStatus(s: CityState): string {
   const b = (x: boolean) => (x ? 1 : 0);
-  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},AUTO=${b(s.AUTO)},MU=${b(s.MU)};LDR=${Math.round(s.LDR ?? 0)}`;
+  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},AUTO=${b(s.AUTO)},MU=${b(s.MU)},SH=${b(s.SH)};LDR=${Math.round(s.LDR ?? 0)}`;
 }
 
 /** Map spoken phrase to commands. Returns null if not understood. */
@@ -58,6 +60,7 @@ export function parseVoice(text: string): { cmds: string[]; reply: string; show?
   const on = /\b(on|start|enable|switch on|turn on)\b/.test(t) && !/\b(off|stop)\b/.test(t);
   const off = /\b(off|stop|disable)\b/.test(t);
   if (/all off|everything off|switch off all|turn off all/.test(t)) return { cmds: ["ALL:0"], reply: "Turning everything off" };
+  if (/show/.test(t) && /\b(stop|end|off)\b/.test(t)) return { cmds: ["SHOW:0"], reply: "Stopping the show" };
   if (/show/.test(t)) return { cmds: [], reply: "Starting show mode", show: true };
   for (const s of ["day", "night", "eco"]) if (t.includes(`${s} mode`) || t.includes(`${s} scene`)) return { cmds: [`SCENE:${s}`], reply: `${s} mode activated` };
   if (/auto/.test(t) && (on || off)) return { cmds: [`AUTO:${on ? 1 : 0}`], reply: `Auto mode ${on ? "on" : "off"}` };

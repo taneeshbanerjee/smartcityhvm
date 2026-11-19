@@ -32,9 +32,9 @@ BLUETOOTH (Nordic UART service)
 
 - Connect button (user gesture) uses requestDevice with filters namePrefix "HVM-SmartCity" and that service, with optionalServices set. Offer "Show all devices" as a fallback.
 
-- Send newline-terminated commands: SL:1/0, BL:1/0, GR:1/0, RD:1/0, WT:1/0 (wind turbines: both L298N motor outputs together), AUTO:1/0, THR:<0-4095>, ALL:0, SCENE:day|night|eco|show, GET, and for party mode MB:<bpm>, MA:<notes>, MP:1/0.
+- Send newline-terminated commands: SL:1/0, BL:1/0, GR:1/0, RD:1/0, WT:1/0 (wind turbines: both L298N motor outputs together), AUTO:1/0, THR:<0-4095>, ALL:0, SCENE:day|night|eco|show, SHOW:0 (stop the show), GET, and for party mode MB:<bpm>, MA:<notes>, MP:1/0.
 
-- Receive status lines like ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0;LDR=732 (MU=1 while party music plays). Buffer incoming chunks until a newline, then parse; ignore malformed lines safely.
+- Receive status lines like ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0,SH=0;LDR=732 (MU=1 while party music plays, SH=1 while the show runs). Buffer incoming chunks until a newline, then parse; ignore malformed lines safely.
 
 - Use a sequential write queue (avoid "GATT operation already in progress"), prefer writeValueWithoutResponse, fall back to writeValue.
 
@@ -48,7 +48,7 @@ AUTOMATION
 
 - Auto Mode runs on the ESP32 (lights follow the LDR threshold), so it keeps working if the phone disconnects.
 
-- Show scene: an app-driven sequence cycling lights and turbines, with a Stop button.
+- Show scene: a stage light show run by the ESP32 itself (no Bluetooth latency) at 128 BPM, 10 patterns of chases, strobes and flashes with the turbines spinning, looping until Stop show (which restores the city).
 
 - Party mode: a 1-minute song (composed by Lovable AI, or the built-in composer) plays on the ESP32 buzzer while the lights change every bar; the city is restored afterwards.
 

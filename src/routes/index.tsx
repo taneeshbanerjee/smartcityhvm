@@ -34,10 +34,6 @@ type Conn = "disconnected" | "connecting" | "connected";
 interface LogItem { id: number; dir: "tx" | "rx" | "info"; text: string; time: string }
 type ModelControl = { channel: "smartcity-model-control"; version: 1; type: "state"; theme?: "night" | "day"; angle?: number; presentation?: "background" | "fullscreen" };
 
-const SHOW_STEPS = [
-  ["SL:1", "BL:0", "GR:1", "RD:0"], ["WT:1", "RD:1"], ["BL:1", "SL:0"],
-  ["GR:0"], ["SL:1", "RD:0", "WT:0"], ["BL:0", "GR:1", "RD:1"],
-];
 
 function Index() {
   const [splash, setSplash] = useState(true);
@@ -61,7 +57,7 @@ function Index() {
   const [modelFullscreen, setModelFullscreen] = useState(false);
   const tRef = useRef<Transport | null>(null);
   const modelFrameRef = useRef<HTMLIFrameElement | null>(null);
-  const showRef = useRef<number | null>(null);
+  const showStartedAt = useRef(0);
   const logId = useRef(0);
 
   const sendModelControl = useCallback((control: Omit<ModelControl, "channel" | "version" | "type">) => {
@@ -114,7 +110,6 @@ function Index() {
     };
   }, [sendModelControl]);
   useEffect(() => () => {
-    if (showRef.current) clearInterval(showRef.current);
     tRef.current?.disconnect();
     window.speechSynthesis?.cancel();
   }, []);
@@ -130,11 +125,9 @@ function Index() {
     else log("rx", line);
   }, [log]);
 
-  const stopShow = useCallback(() => {
-    if (showRef.current) clearInterval(showRef.current);
-    showRef.current = null;
-    setShowRunning(false);
-  }, []);
+  // The ESP32 runs the show itself and ends it (restoring the city) when any other command arrives,
+  // so other buttons only need to clear the local "show running" indicator.
+  const stopShow = useCallback(() => setShowRunning(false), []);
 
   const handlers = {
     onLine,
@@ -185,12 +178,16 @@ function Index() {
   const disconnect = () => { stopShow(); tRef.current?.disconnect(); };
 
   const startShow = () => {
-    stopShow(); setShowRunning(true); send("SCENE:show");
-    let i = 0;
-    showRef.current = window.setInterval(() => {
-      (SHOW_STEPS[i % SHOW_STEPS.length] ?? []).forEach((c) => send(c)); i++;
-    }, 1500);
+    showStartedAt.current = Date.now();
+    setShowRunning(true);
+    send("SCENE:show");
   };
+  const endShow = () => { setShowRunning(false); send("SHOW:0"); };
+  // Follow the show state the ESP32 reports (SH), after giving it a moment to start.
+  useEffect(() => {
+    if (state.SH) setShowRunning(true);
+    else if (Date.now() - showStartedAt.current > 1500) setShowRunning(false);
+  }, [state.SH]);
 
   const scene = (s: string) => { if (s === "show") return startShow(); stopShow(); send("SCENE:" + s); };
   const allOff = () => { stopShow(); send("ALL:0"); };
@@ -399,7 +396,7 @@ function Index() {
             ))}
           </div>
           {showRunning && (
-            <button onClick={stopShow} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-accent font-semibold text-accent">
+            <button onClick={endShow} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-accent font-semibold text-accent">
               <Square size={16} /> Stop show
             </button>
           )}

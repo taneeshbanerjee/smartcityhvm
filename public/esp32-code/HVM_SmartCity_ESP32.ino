@@ -12,6 +12,11 @@
     AUTO:1/0  lights follow the LDR         THR:<0-4095>  dark/light threshold
     ALL:0   everything off                  GET     send status now
     SCENE:day|night|eco|show
+    SHOW:0  stop the show (the city returns to how it was before the show)
+
+  SHOW: a stage light show that runs on the ESP32 itself (no Bluetooth latency): 128 BPM,
+  a new step every half beat (~234 ms), 10 patterns of 2 bars each, looping until stopped.
+  The wind turbines spin for the whole show. Any other command ends it and restores the city first.
 
   PARTY MODE (1-minute song on the buzzer, lights flash to the beat):
     MB:<60-180>       start a new song at this tempo (beats per minute)
@@ -20,8 +25,8 @@
     MP:1 / MP:0       start / stop the party (the city returns to how it was)
 
   STATUS (sent about once a second and after every command):
-    ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0;LDR=732
-    (MU=1 while the party music is playing)
+    ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0,SH=0;LDR=732
+    (MU=1 while the party music is playing, SH=1 while the show is running)
 
   BUZZER: passive buzzer + -> 100 ohm resistor -> GPIO23, buzzer - -> GND.
   (A small speaker also works through an NPN transistor driver.)
@@ -79,16 +84,38 @@ const uint8_t PARTY_STEPS[] = {
   B_WT | B_GR | B_RD
 };
 
-bool showOn = false;
-uint8_t showStep = 0;
-uint32_t showT = 0;
+// ---------- Show (stage light show) ----------
+// W = white street lights, Y = yellow building lights, G = green, R = red, A = all four, 0 = dark.
+enum : uint8_t { W_ = B_SL, Y_ = B_BL, G_ = B_GR, R_ = B_RD, A_ = B_SL | B_BL | B_GR | B_RD };
+const uint16_t SHOW_BPM = 128;
+const uint32_t SHOW_STEP_MS = 60000UL / SHOW_BPM / 2;   // half a beat: ~234 ms
 const uint8_t SHOW_STEPS[] = {
-  B_WT,
-  B_WT | B_GR,
-  B_WT | B_GR | B_SL,
-  B_WT | B_GR | B_SL | B_BL,
-  B_WT | B_GR | B_SL | B_BL | B_RD
+  // 1 chase
+  W_, Y_, G_, R_, W_, Y_, G_, R_, W_, Y_, G_, R_, W_, Y_, G_, R_,
+  // 2 bounce
+  W_, Y_, G_, R_, G_, Y_, W_, Y_, G_, R_, G_, Y_, W_, Y_, G_, R_,
+  // 3 alternating pairs
+  W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_, W_|G_, Y_|R_,
+  // 4 build and drop
+  W_, W_|Y_, W_|Y_|G_, A_, A_, 0, A_, 0, R_, R_|G_, R_|G_|Y_, A_, A_, 0, A_, 0,
+  // 5 strobe
+  A_, 0, A_, 0, A_, 0, A_, 0, A_, 0, A_, 0, A_, 0, A_, 0,
+  // 6 red and white flash
+  R_, 0, R_, 0, W_, 0, W_, 0, R_, 0, R_, 0, W_, 0, W_, 0,
+  // 7 fill and drain
+  W_, W_|Y_, W_|Y_|G_, A_, Y_|G_|R_, G_|R_, R_, 0, R_, R_|G_, R_|G_|Y_, A_, W_|Y_|G_, W_|Y_, W_, 0,
+  // 8 twin flash
+  W_|Y_, 0, G_|R_, 0, W_|Y_, 0, G_|R_, 0, W_|R_, 0, Y_|G_, 0, W_|R_, 0, Y_|G_, 0,
+  // 9 sparkle
+  W_|G_, R_, Y_, W_|R_, G_, Y_|R_, W_, G_|Y_, R_, W_|Y_, G_|R_, W_, Y_|G_, R_, W_|G_|R_, A_,
+  // 10 finale
+  A_, 0, A_, 0, A_, A_, 0, 0, A_, 0, A_, 0, A_, A_, A_, 0
 };
+const uint16_t SHOW_LEN = sizeof(SHOW_STEPS);
+bool showOn = false, showSavedAuto = false;
+uint16_t showStep = 0;
+uint32_t showT = 0;
+uint8_t showSaved = 0;
 
 BLEServer* pServer = nullptr;
 BLECharacteristic* pTx = nullptr;
@@ -131,9 +158,9 @@ int readLdr() {
 String statusLine() {
   char b[110];
   snprintf(b, sizeof(b),
-           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,AUTO=%d,MU=%d;LDR=%d\n",
+           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,AUTO=%d,MU=%d,SH=%d;LDR=%d\n",
            isOn(B_SL), isOn(B_BL), isOn(B_GR), isOn(B_RD),
-           isOn(B_WT), autoMode ? 1 : 0, partyOn ? 1 : 0, lastLdr);
+           isOn(B_WT), autoMode ? 1 : 0, partyOn ? 1 : 0, showOn ? 1 : 0, lastLdr);
   return String(b);
 }
 
@@ -173,6 +200,29 @@ void playNote(uint16_t i) {
   }
 }
 
+void showFrame() {
+  state = SHOW_STEPS[showStep] | B_WT;   // the wind turbines spin for the whole show
+  applyOutputs();
+}
+
+void stopShow(bool restore) {
+  if (!showOn) return;
+  showOn = false;
+  if (restore) { state = showSaved; autoMode = showSavedAuto; }
+  applyOutputs();
+  statusDue = true;
+}
+
+void startShow() {
+  if (!showOn) { showSaved = state; showSavedAuto = autoMode; }
+  autoMode = false;
+  showOn = true;
+  showStep = 0;
+  showT = millis();
+  showFrame();
+  statusDue = true;
+}
+
 void stopParty(bool restore) {
   if (toneOn) { noTone(PIN_BUZ); toneOn = false; }
   if (!partyOn) return;
@@ -185,10 +235,10 @@ void stopParty(bool restore) {
 void startParty() {
   if (songCount == 0) return;
   stopParty(false);
+  stopShow(true);
   partySaved = state;
   partySavedAuto = autoMode;
   autoMode = false;
-  showOn = false;
   partyOn = true;
   partyIdx = 0;
   partySix = 0;
@@ -222,7 +272,9 @@ void handleCommand(String s) {
   if (k == "MP") { if (n != 0) startParty(); else stopParty(true); return; }
 
   stopParty(true);  // any other command ends the party and gives control back
-  showOn = false;   // any command stops the Show
+  if (k == "SCENE" && v == "SHOW") { startShow(); return; }
+  if (k == "SHOW") { if (n != 0) startShow(); else stopShow(true); return; }
+  stopShow(true);   // any other command ends the show and restores the city first
 
   if      (k == "SL")   { autoMode = false; setBit(B_SL, n != 0); }
   else if (k == "BL")   { autoMode = false; setBit(B_BL, n != 0); }
@@ -237,7 +289,6 @@ void handleCommand(String s) {
     if      (v == "DAY")   state = B_GR | B_WT;
     else if (v == "NIGHT") state = B_SL | B_BL | B_RD | B_WT;
     else if (v == "ECO")   state = B_SL | B_GR | B_WT;
-    else if (v == "SHOW")  { state = 0; showOn = true; showStep = 0; showT = millis() - 900; }
   }
   Serial.print("CMD: "); Serial.println(s);
 }
@@ -315,16 +366,14 @@ void loop() {
     }
   }
 
-  // 2b) Show scene (steps every 0.9 s, then stops)
-  if (showOn && now - showT >= 900) {
-    showT = now;
-    if (showStep < sizeof(SHOW_STEPS)) {
-      state = SHOW_STEPS[showStep++];
-      applyOutputs();
-      statusDue = true;
-    } else {
-      showOn = false;
-    }
+  // 2b) Show: next step on a fixed timeline, so status replies never delay or drift the beat
+  bool showStepped = false;
+  if (showOn && now - showT >= SHOW_STEP_MS) {
+    showStepped = true;
+    showT += SHOW_STEP_MS;
+    if (now - showT >= SHOW_STEP_MS) showT = now;   // after a long stall, carry on instead of racing to catch up
+    showStep = (showStep + 1) % SHOW_LEN;
+    showFrame();
   }
 
   // 3) read the LDR, and run Auto mode (works even if the phone disconnects)
@@ -338,8 +387,9 @@ void loop() {
     }
   }
 
-  // 4) send status
-  if (connected && (statusDue || now - statT >= 1000)) {
+  // 4) send status. During the show the regular update goes out right after a light change,
+  //    so the time spent sending falls between steps and never delays the next one.
+  if (connected && (statusDue || (now - statT >= 1000 && (!showOn || showStepped)))) {
     statT = now;
     statusDue = false;
     notifyLine(statusLine());

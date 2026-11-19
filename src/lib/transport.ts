@@ -1,4 +1,5 @@
 import { NUS_NOTIFY, NUS_SERVICE, NUS_WRITE, formatStatus, initialState, type CityState } from "./smartcity";
+import { showLights, SHOW_STEP_MS, SHOW_STEPS } from "./show";
 
 export interface Transport {
   send(cmd: string): Promise<void>;
@@ -205,6 +206,26 @@ export function connectDemo(h: Handlers): Transport {
   ];
   let bpm = 120;
   let songSixteenths = 0;
+  // stage show, simulated like the firmware: same patterns and tempo, turbines on, city restored afterwards
+  let show: { timer: ReturnType<typeof setInterval>; saved: CityState; step: number } | null = null;
+  const showFrame = () => {
+    if (!show || closed) return;
+    Object.assign(s, showLights(SHOW_STEPS[show.step] ?? 0), { WT: true, AUTO: false, SH: true });
+    h.onLine(formatStatus(s));
+  };
+  const stopShow = (restore: boolean) => {
+    if (!show) return;
+    clearInterval(show.timer);
+    if (restore) Object.assign(s, { ...show.saved, LDR: s.LDR });
+    show = null;
+    s.SH = false;
+  };
+  const startShow = () => {
+    const saved = show ? show.saved : { ...s };
+    if (show) clearInterval(show.timer);
+    show = { saved, step: 0, timer: setInterval(() => { if (show) { show.step = (show.step + 1) % SHOW_STEPS.length; showFrame(); } }, SHOW_STEP_MS) };
+    showFrame();
+  };
   let party: { timer: ReturnType<typeof setInterval>; saved: CityState } | null = null;
   const stopParty = (restore: boolean) => {
     if (!party) return;
@@ -216,6 +237,7 @@ export function connectDemo(h: Handlers): Transport {
   const startParty = () => {
     if (!songSixteenths) return;
     stopParty(true);
+    stopShow(true);
     const saved = { ...s };
     const bars = Math.ceil(songSixteenths / 16);
     let bar = 0;
@@ -249,17 +271,21 @@ export function connectDemo(h: Handlers): Transport {
       else if (k === "MA") { for (let i = 0; i + 3 < v.length; i += 4) songSixteenths += parseInt(v.slice(i + 2, i + 4), 16) || 0; return; }
       else if (k === "MP") { if (v === "1") startParty(); else stopParty(true); }
       else if (k !== "GET") stopParty(true);
+      if ((k === "SCENE" && v.toLowerCase() === "show") || k === "SHOW") {
+        if (k === "SHOW" && v === "0") stopShow(true); else startShow();
+        setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60); emit(); return;
+      }
+      if (!["GET", "MB", "MA", "MP"].includes(k)) stopShow(true);
       if (k === "MB" || k === "MP") { setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60); emit(); return; }
       if (k in s && (v === "0" || v === "1")) (s as any)[k] = v === "1";
       else if (k === "THR") thr = Number(v) || 0;
       else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT"] as const).forEach((x) => (s[x] = false));
       else if (k === "SCENE") {
-        // same scenes as the ESP32 firmware (SL, BL, GR, RD, WT); "show" starts dark like the firmware
+        // same scenes as the ESP32 firmware (SL, BL, GR, RD, WT); the show is handled above
         const p: Record<string, boolean[]> = {
           day: [false, false, true, false, true],
           night: [true, true, false, true, true],
           eco: [true, false, true, false, true],
-          show: [false, false, false, false, false],
         };
         const arr = p[v];
         if (arr) (["SL", "BL", "GR", "RD", "WT"] as const).forEach((x, i) => (s[x] = !!arr[i]));
@@ -271,6 +297,7 @@ export function connectDemo(h: Handlers): Transport {
     disconnect() {
       closed = true;
       stopParty(false);
+      stopShow(false);
       clearInterval(timer);
       h.onDiagnostics?.({ ...initialDiagnostics, stage: "Demo stopped" });
       h.onDisconnect(false);
