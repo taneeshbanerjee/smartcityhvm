@@ -22,4 +22,28 @@ describe("Edited by Taneesh badge", () => {
     render(<CreditBadge pathname="/game" />);
     expect(screen.queryByText("Edited by Taneesh")).toBeNull();
   });
+
+  it("hides for the session as soon as any button on the website is pressed", () => {
+    const view = render(
+      <div>
+        <button type="button">Connect</button>
+        <a href="/circuit-diagram">Circuit diagram</a>
+        <p>Plain text</p>
+        <CreditBadge pathname="/" />
+      </div>,
+    );
+    fireEvent.click(screen.getByText("Plain text"));
+    expect(screen.getByText("Edited by Taneesh")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    expect(screen.queryByText("Edited by Taneesh")).toBeNull();
+    view.unmount();
+    render(<CreditBadge pathname="/" />);
+    expect(screen.queryByText("Edited by Taneesh")).toBeNull();
+  });
+
+  it("also hides when a button-style link is pressed", () => {
+    render(<div><a href="#files">Launch video</a><CreditBadge pathname="/" /></div>);
+    fireEvent.click(screen.getByText("Launch video"));
+    expect(screen.queryByText("Edited by Taneesh")).toBeNull();
+  });
 });

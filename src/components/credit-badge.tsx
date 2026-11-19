@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { showCreditBadgeOn } from "@/lib/credit-badge";
+import { BUTTON_SELECTOR, showCreditBadgeOn } from "@/lib/credit-badge";
 
 const DISMISS_KEY = "smartcity-credit-dismissed";
 
 /**
  * Small "Edited by Taneesh" credit in the bottom-right corner, raised to sit just above the
  * hosting badge Lovable shows there (so neither covers the other); ✕ hides it for this session.
- * Not shown on the game and 3D pages.
+ * Not shown on the game and 3D pages, and it hides for the session as soon as any button is pressed.
  */
 export function CreditBadge({ pathname }: { pathname: string }) {
   const [visible, setVisible] = useState(false);
@@ -22,6 +22,16 @@ export function CreditBadge({ pathname }: { pathname: string }) {
     setVisible(false);
     try { sessionStorage.setItem(DISMISS_KEY, "1"); } catch { /* Storage can be unavailable. */ }
   };
+
+  // The first press of any button on the website hides the badge for the rest of the session.
+  useEffect(() => {
+    if (!visible) return;
+    const onPress = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest(BUTTON_SELECTOR)) dismiss();
+    };
+    document.addEventListener("click", onPress, true);
+    return () => document.removeEventListener("click", onPress, true);
+  }, [visible]);
 
   if (!visible || !showCreditBadgeOn(pathname)) return null;
   return (
