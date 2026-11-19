@@ -3,7 +3,10 @@ import { X } from "lucide-react";
 
 const DISMISS_KEY = "smartcity-credit-dismissed";
 
-/** Small "Edited by Taneesh" credit in the bottom-left corner; ✕ hides it for this browser session. */
+/**
+ * Small "Edited by Taneesh" credit in the bottom-right corner, raised to sit just above the
+ * hosting badge Lovable shows there (so neither covers the other); ✕ hides it for this session.
+ */
 export function CreditBadge() {
   const [visible, setVisible] = useState(false);
 
@@ -23,7 +26,7 @@ export function CreditBadge() {
     <div
       role="note"
       aria-label="Edited by Taneesh"
-      className="fixed bottom-3 left-3 z-40 flex items-center gap-1 rounded-md border border-border/70 bg-background/90 py-1 pr-1 pl-2.5 text-xs font-medium text-foreground shadow-card backdrop-blur-xl print:hidden"
+      className="fixed right-3 bottom-14 z-40 flex items-center gap-1 rounded-md border border-border/70 bg-background/90 py-1 pr-1 pl-2.5 text-xs font-medium text-foreground shadow-card backdrop-blur-xl print:hidden"
       style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <span>Edited by Taneesh</span>
