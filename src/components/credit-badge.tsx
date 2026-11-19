@@ -7,7 +7,7 @@ const DISMISS_KEY = "smartcity-credit-dismissed";
 /**
  * Small "Edited by Taneesh" credit in the bottom-right corner, raised to sit just above the
  * hosting badge Lovable shows there (so neither covers the other); ✕ hides it for this session.
- * Not shown on the game, 3D, hydro dam template and circuit diagram pages, and it hides for the session as soon as any button is pressed.
+ * Not shown on the game, 3D, hydro dam template, circuit diagram and launch video pages, and it hides for the session as soon as any button is pressed.
  */
 export function CreditBadge({ pathname }: { pathname: string }) {
   const [visible, setVisible] = useState(false);
