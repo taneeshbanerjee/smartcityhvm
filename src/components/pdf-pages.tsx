@@ -32,12 +32,15 @@ export function PdfPages({ title, dir, pdfName, filePrefix, pages, width, height
           <a href={pdfUrl} target="_blank" rel="noreferrer" aria-label="Open the PDF separately"><Expand /></a>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <a href={pdfUrl} download={pdfName} aria-label={`Download all ${pages.length} pages as one PDF`}><Download /> All pages (PDF)</a>
+          <a href={pdfUrl} download={pdfName} aria-label={`Download all ${pages.length} pages as one PDF`}><Download /> Download PDF</a>
         </Button>
       </header>
       <section className="space-y-6 p-4">
+        <Button asChild className="h-12 w-full rounded-xl text-base">
+          <a href={pdfUrl} download={pdfName}><Download /> Download all {pages.length} pages (PDF)</a>
+        </Button>
         <p className="text-sm text-muted-foreground">
-          {pages.length} pages. "All pages (PDF)" downloads every page together in one file.{intro ? <> {intro}</> : null}
+          {pages.length} pages. The PDF has every page together in one file; each page can also be downloaded as an image below.{intro ? <> {intro}</> : null}
         </p>
         {pages.map((page) => (
           <figure key={page.n} className="space-y-2">
