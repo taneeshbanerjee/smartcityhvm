@@ -16,6 +16,7 @@ import { Route as GameRouteImport } from './routes/game'
 import { Route as HeadingBoardRouteImport } from './routes/heading-board'
 import { Route as HydroDamTemplateRouteImport } from './routes/hydro-dam-template'
 import { Route as LaunchVideoRouteImport } from './routes/launch-video'
+import { Route as MetroTemplateRouteImport } from './routes/metro-template'
 import { Route as ModelRouteImport } from './routes/model'
 import { Route as VoiceAgentRouteImport } from './routes/voice-agent'
 
@@ -54,6 +55,11 @@ const LaunchVideoRoute = LaunchVideoRouteImport.update({
   path: '/launch-video',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MetroTemplateRoute = MetroTemplateRouteImport.update({
+  id: '/metro-template',
+  path: '/metro-template',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ModelRoute = ModelRouteImport.update({
   id: '/model',
   path: '/model',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/heading-board': typeof HeadingBoardRoute
   '/hydro-dam-template': typeof HydroDamTemplateRoute
   '/launch-video': typeof LaunchVideoRoute
+  '/metro-template': typeof MetroTemplateRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/heading-board': typeof HeadingBoardRoute
   '/hydro-dam-template': typeof HydroDamTemplateRoute
   '/launch-video': typeof LaunchVideoRoute
+  '/metro-template': typeof MetroTemplateRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/heading-board': typeof HeadingBoardRoute
   '/hydro-dam-template': typeof HydroDamTemplateRoute
   '/launch-video': typeof LaunchVideoRoute
+  '/metro-template': typeof MetroTemplateRoute
   '/model': typeof ModelRoute
   '/voice-agent': typeof VoiceAgentRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/heading-board'
     | '/hydro-dam-template'
     | '/launch-video'
+    | '/metro-template'
     | '/model'
     | '/voice-agent'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/heading-board'
     | '/hydro-dam-template'
     | '/launch-video'
+    | '/metro-template'
     | '/model'
     | '/voice-agent'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/heading-board'
     | '/hydro-dam-template'
     | '/launch-video'
+    | '/metro-template'
     | '/model'
     | '/voice-agent'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   HeadingBoardRoute: typeof HeadingBoardRoute
   HydroDamTemplateRoute: typeof HydroDamTemplateRoute
   LaunchVideoRoute: typeof LaunchVideoRoute
+  MetroTemplateRoute: typeof MetroTemplateRoute
   ModelRoute: typeof ModelRoute
   VoiceAgentRoute: typeof VoiceAgentRoute
 }
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/metro-template': {
+      id: '/metro-template'
+      path: '/metro-template'
+      fullPath: '/metro-template'
+      preLoaderRoute: typeof MetroTemplateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/model': {
       id: '/model'
       path: '/model'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   HeadingBoardRoute: HeadingBoardRoute,
   HydroDamTemplateRoute: HydroDamTemplateRoute,
   LaunchVideoRoute: LaunchVideoRoute,
+  MetroTemplateRoute: MetroTemplateRoute,
   ModelRoute: ModelRoute,
   VoiceAgentRoute: VoiceAgentRoute,
 }
