@@ -1,18 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Pause, Play, RotateCcw, Smartphone } from "lucide-react";
-import { canLockLandscape, enterLandscape, leaveLandscape } from "@/lib/landscape";
+import { ArrowLeft, Download, Play, RotateCcw } from "lucide-react";
+import launchVideo30s from "@/assets/smart-city-launch.mp4.asset.json";
+import { Button } from "@/components/ui/button";
 
-const VIDEO_URL = "/launch-video/Smart_City_Launch.mp4";
-const POSTER_URL = "/launch-video/poster.jpg";
+const VIDEOS = [
+  {
+    id: "1min",
+    title: "Launch video · 1 minute",
+    src: "/launch-video/Smart_City_Launch.mp4",
+    poster: "/launch-video/poster.jpg",
+    fileName: "Smart_City_Launch_Video_1_minute.mp4",
+  },
+  {
+    id: "30s",
+    title: "Launch video · 30 seconds",
+    src: launchVideo30s.url,
+    poster: "/launch-video/poster-30s.jpg",
+    fileName: "Smart_City_Launch_Video_30_seconds.mp4",
+  },
+] as const;
 
 export const Route = createFileRoute("/launch-video")({
   head: () => ({
     meta: [
-      { title: "Smart City Launch Video — SmartCity Control" },
-      { name: "description", content: "Watch the Hariyana Vidya Mandir Smart City launch video in full HD." },
-      { property: "og:title", content: "Smart City Launch Video" },
-      { property: "og:description", content: "The 60-second Smart City launch video." },
+      { title: "Smart City Launch Videos — SmartCity Control" },
+      { name: "description", content: "Watch the Hariyana Vidya Mandir Smart City launch videos in full HD: the 1-minute and 30-second edits." },
+      { property: "og:title", content: "Smart City Launch Videos" },
+      { property: "og:description", content: "The 1-minute and 30-second Smart City launch videos." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -21,94 +36,80 @@ export const Route = createFileRoute("/launch-video")({
 });
 
 function LaunchVideoPage() {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const hideTimer = useRef<number | null>(null);
+  const players = useRef<Record<string, HTMLVideoElement | null>>({});
+  // Only one video plays at a time.
+  const onPlay = (id: string) => {
+    for (const [other, video] of Object.entries(players.current)) if (other !== id) video?.pause();
+  };
+
+  return (
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col bg-background text-foreground">
+      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <Button variant="outline" size="icon" asChild>
+          <Link to="/" aria-label="Back to Smart City Control"><ArrowLeft /></Link>
+        </Button>
+        <h1 className="min-w-0 flex-1 truncate font-display font-semibold">Smart City Launch Videos</h1>
+      </header>
+      <section className="space-y-8 p-4">
+        {VIDEOS.map((video) => (
+          <VideoCard key={video.id} {...video} register={(el) => { players.current[video.id] = el; }} onPlay={() => onPlay(video.id)} />
+        ))}
+      </section>
+    </main>
+  );
+}
+
+function VideoCard({ title, src, poster, fileName, register, onPlay }: {
+  title: string;
+  src: string;
+  poster: string;
+  fileName: string;
+  register: (el: HTMLVideoElement | null) => void;
+  onPlay: () => void;
+}) {
+  const ref = useRef<HTMLVideoElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [ended, setEnded] = useState(false);
-  const [chrome, setChrome] = useState(true);
-  const [portrait, setPortrait] = useState(false);
-  const [canLock, setCanLock] = useState(false);
-
-  // Track orientation; the page asks to rotate only when it can't do it itself.
-  useEffect(() => {
-    setCanLock(canLockLandscape());
-    const query = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
-    const update = () => setPortrait(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
-  // Leaving the page releases the landscape lock and full screen started by the Launch video button.
-  useEffect(() => () => { void leaveLandscape(); }, []);
-
-  // The top bar and the centre button fade out while the video plays, and come back on any touch.
-  const wake = useCallback(() => {
-    setChrome(true);
-    if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setChrome(false), 2500);
-  }, []);
-  useEffect(() => () => { if (hideTimer.current) window.clearTimeout(hideTimer.current); }, []);
 
   const toggle = () => {
-    const video = videoRef.current;
+    const video = ref.current;
     if (!video) return;
     if (video.paused || video.ended) void video.play().catch(() => {});
     else video.pause();
   };
 
-  const showChrome = chrome || !playing;
-
   return (
-    <main
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black text-white"
-      onPointerMove={() => { if (playing) wake(); }}
-      onPointerDown={() => { if (playing) wake(); }}
-    >
-      <video
-        ref={videoRef}
-        className="h-full w-full object-contain"
-        src={VIDEO_URL}
-        poster={POSTER_URL}
-        preload="auto"
-        controls
-        aria-label="Smart City launch video"
-        onPlay={() => { setPlaying(true); setEnded(false); wake(); }}
-        onPause={() => { setPlaying(false); setChrome(true); }}
-        onEnded={() => { setPlaying(false); setEnded(true); setChrome(true); }}
-      />
-
-      <div
-        className={`pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 bg-gradient-to-b from-black/70 to-transparent px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-8 transition-opacity duration-300 ${showChrome ? "opacity-100" : "opacity-0"}`}
-      >
-        <Link to="/" aria-label="Back to Smart City Control" className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-white/15 backdrop-blur hover:bg-white/25">
-          <ArrowLeft size={20} />
-        </Link>
-        <h1 className="min-w-0 flex-1 truncate font-display text-base font-semibold">Smart City Launch Video</h1>
-        {canLock && portrait && (
-          <button type="button" onClick={() => { void enterLandscape(); }} className="pointer-events-auto flex h-10 items-center gap-1.5 rounded-full bg-white/15 px-3 text-sm font-semibold backdrop-blur hover:bg-white/25">
-            <Smartphone size={16} className="rotate-90" /> Landscape
+    <figure className="space-y-2">
+      <figcaption className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg font-semibold">{title}</h2>
+        <Button variant="outline" size="sm" asChild>
+          <a href={src} download={fileName} aria-label={`Download ${title}`}><Download /> Download</a>
+        </Button>
+      </figcaption>
+      <div className="relative overflow-hidden rounded-xl bg-black">
+        <video
+          ref={(el) => { ref.current = el; register(el); }}
+          className="aspect-video w-full"
+          src={src}
+          poster={poster}
+          preload="metadata"
+          controls
+          aria-label={title}
+          onPlay={() => { setPlaying(true); setEnded(false); onPlay(); }}
+          onPause={() => setPlaying(false)}
+          onEnded={() => { setPlaying(false); setEnded(true); }}
+        />
+        {!playing && (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={ended ? `Play ${title} again` : `Play ${title}`}
+            className="absolute top-1/2 left-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/25 text-white shadow-lg backdrop-blur-md transition hover:bg-white/35 active:scale-95"
+          >
+            {ended ? <RotateCcw size={28} /> : <Play size={30} fill="currentColor" className="ml-1" />}
           </button>
         )}
-        <a href={VIDEO_URL} download="Smart_City_Launch_Video.mp4" aria-label="Download launch video" className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-white/15 backdrop-blur hover:bg-white/25">
-          <Download size={18} />
-        </a>
       </div>
-
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={playing ? "Pause" : ended ? "Play again" : "Play"}
-        className={`absolute grid h-20 w-20 place-items-center rounded-full bg-white/20 text-white shadow-lg backdrop-blur-md transition-opacity duration-300 hover:bg-white/30 active:scale-95 ${showChrome ? "opacity-100" : "pointer-events-none opacity-0"}`}
-      >
-        {playing ? <Pause size={36} fill="currentColor" /> : ended ? <RotateCcw size={34} /> : <Play size={36} fill="currentColor" className="ml-1" />}
-      </button>
-
-      {portrait && !canLock && !playing && (
-        <p className="pointer-events-none absolute inset-x-0 bottom-[max(5rem,env(safe-area-inset-bottom))] flex items-center justify-center gap-2 text-sm text-white/80">
-          <Smartphone size={16} className="rotate-90" /> Turn your phone sideways for full screen
-        </p>
-      )}
-    </main>
+    </figure>
   );
 }

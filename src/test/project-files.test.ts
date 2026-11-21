@@ -23,11 +23,12 @@ describe("project files on the website", () => {
     expect(existsSync(file("theme-song/cover.jpg"))).toBe(true);
   });
 
-  it("serves the full HD launch video unchanged, with its poster", () => {
+  it("serves the full HD 1-minute launch video unchanged, with posters for both launch videos", () => {
     const video = readFileSync(file("launch-video/Smart_City_Launch.mp4"));
     expect(createHash("sha256").update(video).digest("hex")).toBe("95cbca89cafefb3751282a9047aaf9fd46f5328590ac29dc02f9c7d7c5ac82d1");
     expect(video.subarray(4, 8).toString("latin1")).toBe("ftyp");
     expect(existsSync(file("launch-video/poster.jpg"))).toBe(true);
+    expect(existsSync(file("launch-video/poster-30s.jpg"))).toBe(true);
   });
 
   it("serves the metro template PDF unchanged, with a preview and a download image for all 9 pages", () => {
