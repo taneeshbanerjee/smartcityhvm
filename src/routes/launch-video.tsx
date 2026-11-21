@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import launchVideo30s from "@/assets/smart-city-launch.mp4.asset.json";
 import { Button } from "@/components/ui/button";
 
@@ -67,17 +67,6 @@ function VideoCard({ title, src, poster, fileName, register, onPlay }: {
   register: (el: HTMLVideoElement | null) => void;
   onPlay: () => void;
 }) {
-  const ref = useRef<HTMLVideoElement | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [ended, setEnded] = useState(false);
-
-  const toggle = () => {
-    const video = ref.current;
-    if (!video) return;
-    if (video.paused || video.ended) void video.play().catch(() => {});
-    else video.pause();
-  };
-
   return (
     <figure className="space-y-2">
       <figcaption className="flex items-center justify-between gap-3">
@@ -86,29 +75,17 @@ function VideoCard({ title, src, poster, fileName, register, onPlay }: {
           <a href={src} download={fileName} aria-label={`Download ${title}`}><Download /> Download</a>
         </Button>
       </figcaption>
-      <div className="relative overflow-hidden rounded-xl bg-black">
+      <div className="overflow-hidden rounded-xl bg-black">
         <video
-          ref={(el) => { ref.current = el; register(el); }}
+          ref={register}
           className="aspect-video w-full"
           src={src}
           poster={poster}
           preload="metadata"
           controls
           aria-label={title}
-          onPlay={() => { setPlaying(true); setEnded(false); onPlay(); }}
-          onPause={() => setPlaying(false)}
-          onEnded={() => { setPlaying(false); setEnded(true); }}
+          onPlay={onPlay}
         />
-        {!playing && (
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={ended ? `Play ${title} again` : `Play ${title}`}
-            className="absolute top-1/2 left-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/25 text-white shadow-lg backdrop-blur-md transition hover:bg-white/35 active:scale-95"
-          >
-            {ended ? <RotateCcw size={28} /> : <Play size={30} fill="currentColor" className="ml-1" />}
-          </button>
-        )}
       </div>
     </figure>
   );

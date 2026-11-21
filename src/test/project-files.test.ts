@@ -31,15 +31,6 @@ describe("project files on the website", () => {
     expect(existsSync(file("launch-video/poster-30s.jpg"))).toBe(true);
   });
 
-  it("serves the metro template PDF unchanged, with a preview and a download image for all 9 pages", () => {
-    const pdf = readFileSync(file("metro-template/Smart_City_Metro_Template.pdf"));
-    expect(createHash("sha256").update(pdf).digest("hex")).toBe("25fe1fe13af270e73971b804e15fd63bfab9e2c103ed470e7443713c5241207b");
-    for (let n = 1; n <= 9; n++) {
-      expect(existsSync(file(`metro-template/page-${n}.webp`))).toBe(true);
-      expect(existsSync(file(`metro-template/page-${n}.png`))).toBe(true);
-    }
-  });
-
   it("lets every hydro dam size be edited, keeping pieces, steps and board scaling in sync", () => {
     const html = readFileSync(file("hydro-dam-template/index.html"), "utf8");
     document.body.innerHTML = html.slice(html.indexOf("<body>") + 6, html.lastIndexOf("<script>"));

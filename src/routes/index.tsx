@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner";
 import {
   Bluetooth, BluetoothOff, Building2, Fan, Lamp, Leaf, ListTree, Loader2, Mic, MicOff,
-  Moon, Power, Radio, Sparkles, Sun, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost, PartyPopper, Scissors, TrainFront,
+  Moon, Power, Radio, Sparkles, Sun, Zap, X, Square, Gauge, Signal, Box, Bot, FileCode2, Maximize, Film, CircuitBoard, Gamepad2, Signpost, PartyPopper, Scissors,
 } from "lucide-react";
 import { ORG_NAME, initialState, parseStatus, parseVoice, type CityState, type SwitchKey } from "@/lib/smartcity";
 import { connectBle, connectDemo, isBleSupported, initialDiagnostics, type Transport, type TransportError } from "@/lib/transport";
@@ -360,10 +360,7 @@ function Index() {
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/heading-board"><Signpost />Heading Board</Link></Button>
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/game"><Gamepad2 />Smart City game</Link></Button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/hydro-dam-template"><Scissors />Hydro dam template</Link></Button>
-          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/metro-template"><TrainFront />Metro template</Link></Button>
-        </div>
+        <Button variant="ghost" asChild className="glass-control h-12 w-full rounded-xl"><Link to="/hydro-dam-template"><Scissors />Hydro dam template</Link></Button>
 
         <SmartCityMedia />
 
