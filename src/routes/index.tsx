@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SmartCityMedia } from "@/components/smart-city-media";
 import { AIControlPlanPanel } from "@/components/ai-control-plan-panel";
+import { enterLandscape } from "@/lib/landscape";
 import { PartyModePanel } from "@/components/party-mode-panel";
 
 export const Route = createFileRoute("/")({
@@ -355,7 +356,7 @@ function Index() {
         </div>
         <Button variant="ghost" asChild className="glass-control h-12 w-full rounded-xl"><Link to="/esp32-code"><FileCode2 />ESP32 code</Link></Button>
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/launch-video"><Film />Launch video</Link></Button>
+          <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/launch-video" onClick={() => { void enterLandscape(); }}><Film />Launch video</Link></Button>
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/circuit-diagram"><CircuitBoard />Circuit diagram</Link></Button>
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/heading-board"><Signpost />Heading Board</Link></Button>
           <Button variant="ghost" asChild className="glass-control h-12 rounded-xl"><Link to="/game"><Gamepad2 />Smart City game</Link></Button>
