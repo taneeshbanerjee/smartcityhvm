@@ -193,7 +193,7 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
           <p className="text-xs text-muted-foreground">
             {!connected ? "Connect to the city or start Demo mode to start the party." :
               demo ? "Demo mode: the phone plays the tune and the simulated city follows it note by note." :
-                "The notes are sent to the city first, then the phone plays the tune and the ESP32 lights follow it: a step on every note, dark on rests, a new pattern every bar. Turn the phone's volume up."}
+                "The notes are sent to the city first, then the phone plays the tune and the ESP32 lights follow it: a step on every note, dark on rests, the next of 1 lakh light variations every bar. Turn the phone's volume up."}
           </p>
         </div>
       )}

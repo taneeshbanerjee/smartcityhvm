@@ -6,7 +6,6 @@ const PAGES: readonly PdfPage[] = [
   { n: 2, title: "Motors on the L298N motor driver", detail: "OUT1–OUT4" },
   { n: 3, title: "Motor driver inputs", detail: "IN1 D27, IN2 D26, IN3 D25, IN4 D33" },
   { n: 4, title: "Light sensor (LDR)", detail: "3V3 → LDR → D32, and D32 → resistor → GND" },
-  { n: 5, title: "Microphone, speaker amplifier, OLED display and LED (not used by the ESP32 code)", detail: "INMP441, MAX98357A with 2 W speaker, 0.96\" OLED, 5 mm LED" },
 ];
 
 export const Route = createFileRoute("/circuit-diagram")({
@@ -33,7 +32,7 @@ function CircuitDiagramPage() {
       pages={PAGES}
       width={2000}
       height={1125}
-      intro="Pages 1–4 are the exact pin map of the ESP32 code on this website (no buzzer). Page 5 is a separate circuit that the code doesn't use; its wires share pins with pages 1–4, so don't wire it to the same ESP32."
+      intro="These 4 pages are the exact pin map of the ESP32 code on this website."
     />
   );
 }

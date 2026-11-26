@@ -19,14 +19,19 @@
     SHOW:0  stop the show (the city returns to how it was before the show)
 
   SHOW: a stage light show that runs on the ESP32 itself (no Bluetooth latency): 128 BPM,
-  a new step every half beat (~234 ms), 1000 different patterns of one bar each (about 31 minutes),
-  looping until stopped.
+  a new step every half beat (~234 ms), one bar per variation, through 1 lakh (100,000) different
+  light variations (about 52 hours), looping until stopped.
+
+  1 LAKH VARIATIONS: the 1000 patterns below, each played with the lights in any of 24 colour
+  orders, forwards or backwards, and starting from any of its 8 steps. The ESP32 works each one out
+  as it goes (a table of 100,000 would not fit in its memory) and skips any variation that looks the
+  same as an earlier one, so all 100,000 are different. Variations 1-1000 are the patterns as written.
   The wind turbines spin for the whole show. Any other command ends it and restores the city first.
 
   PARTY MODE (the phone plays the 1-minute song; the ESP32 gets the same notes and the lights
-  follow the tune: every note the phone plays moves the lights one step on through the pattern,
+  follow the tune: every note the phone plays moves the lights one step on through the variation,
   each note ends with a short blink like the sound does, a rest is dark, and every bar of the song
-  gets the next of the 1000 patterns; each party continues where the last one ended):
+  gets the next of the 1 lakh variations; each party continues where the last one ended):
     MB:<60-180>       start a new song at this tempo (beats per minute)
     MA:<notes>        add up to 15 notes, 4 hex digits each: 2 = MIDI note
                       (00 = rest), 2 = length in 16th notes. e.g. MA:3C044004
@@ -94,15 +99,16 @@ uint16_t songBpm = 120;
 bool partyOn = false;
 uint16_t partyIdx = 0;
 uint32_t partyNoteT = 0, partyNoteMs = 0, partySix = 0, partyNoteSix = 0, partyBar = 0;
-uint8_t partyHit = 0;          // notes played so far in this bar (the step in its pattern)
+uint8_t partyHit = 0;          // notes played so far in this bar (the step in its variation)
 bool partyGap = false;         // in the short blink at the end of a note
 uint8_t partySaved = 0;
 bool partySavedAuto = false;
 
 // ---------- Light patterns for the Show and Party Mode ----------
-// 1000 different patterns of one bar each (8 half-beat steps). Values are light bits: 1 = white street lights,
-// 2 = yellow building lights, 4 = green, 8 = red (15 = all four, 0 = dark). The website's demo mode
-// uses the same table (src/lib/show.ts), and a test checks the two are identical.
+// 1000 different patterns of one bar each (8 half-beat steps), the base of the 1 lakh variations.
+// Values are light bits: 1 = white street lights, 2 = yellow building lights, 4 = green, 8 = red
+// (15 = all four, 0 = dark). The website's demo mode uses the same table and variations
+// (src/lib/show.ts), and a test checks the two are identical.
 const uint16_t SHOW_BPM = 128;
 const uint32_t SHOW_STEP_MS = 60000UL / SHOW_BPM / 2;   // half a beat: ~234 ms
 const uint8_t PATTERN_STEPS = 8;
@@ -1110,7 +1116,94 @@ const uint8_t SHOW_STEPS[] = {
 };
 const uint16_t SHOW_LEN = sizeof(SHOW_STEPS);
 const uint16_t PATTERN_COUNT = SHOW_LEN / PATTERN_STEPS;   // 1000
-uint16_t partyPattern = 0;   // each party carries on from where the last one stopped
+
+// ---------- 1 lakh variations ----------
+const uint32_t VARIATION_COUNT = 100000;
+// The 24 orders of the four lights: in order k, the street lights' part is played by
+// LIGHT_ORDERS[k][0], the building lights' part by [1], green's by [2], red's by [3].
+const uint8_t LIGHT_ORDERS[24][4] = {
+  {1, 2, 4, 8}, {1, 2, 8, 4}, {1, 4, 2, 8}, {1, 4, 8, 2}, {1, 8, 2, 4}, {1, 8, 4, 2},
+  {2, 1, 4, 8}, {2, 1, 8, 4}, {2, 4, 1, 8}, {2, 4, 8, 1}, {2, 8, 1, 4}, {2, 8, 4, 1},
+  {4, 1, 2, 8}, {4, 1, 8, 2}, {4, 2, 1, 8}, {4, 2, 8, 1}, {4, 8, 1, 2}, {4, 8, 2, 1},
+  {8, 1, 2, 4}, {8, 1, 4, 2}, {8, 2, 1, 4}, {8, 2, 4, 1}, {8, 4, 1, 2}, {8, 4, 2, 1},
+};
+// Candidate c = transform t (c / 1000) applied to pattern b (c % 1000). Transform t: colour order
+// t % 24, backwards if (t / 24) is odd, starting at step (t / 48) % 8. 384 transforms x 1000.
+const uint16_t TRANSFORMS = 384;
+uint8_t remapTo[24][16], remapFrom[24][16];   // light set -> recoloured set, and back
+uint32_t baseKeys[PATTERN_COUNT];             // the 1000 patterns packed into 32 bits, sorted
+
+struct Variation { uint32_t cand; uint32_t num; uint8_t steps[PATTERN_STEPS]; };
+Variation showVar, partyVar;
+
+uint8_t stepIndex(uint16_t t, uint8_t k) {     // which step of the pattern plays at step k
+  uint8_t j = (k + (t / 48) % 8) % PATTERN_STEPS;
+  return ((t / 24) % 2) ? PATTERN_STEPS - 1 - j : j;
+}
+
+int cmpKey(const void* a, const void* b) {
+  uint32_t x = *(const uint32_t*)a, y = *(const uint32_t*)b;
+  return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+void setupVariations() {
+  for (uint8_t o = 0; o < 24; o++)
+    for (uint8_t m = 0; m < 16; m++) {
+      uint8_t r = 0;
+      for (uint8_t i = 0; i < 4; i++) if (m & (1 << i)) r |= LIGHT_ORDERS[o][i];
+      remapTo[o][m] = r;
+      remapFrom[o][r] = m;
+    }
+  for (uint16_t b = 0; b < PATTERN_COUNT; b++) {
+    uint32_t key = 0;
+    for (uint8_t k = 0; k < PATTERN_STEPS; k++) key |= (uint32_t)SHOW_STEPS[b * PATTERN_STEPS + k] << (4 * k);
+    baseKeys[b] = key;
+  }
+  qsort(baseKeys, PATTERN_COUNT, sizeof(uint32_t), cmpKey);
+}
+
+bool isBasePattern(uint32_t key) {
+  int lo = 0, hi = PATTERN_COUNT - 1;
+  while (lo <= hi) {
+    int mid = (lo + hi) / 2;
+    if (baseKeys[mid] == key) return true;
+    if (baseKeys[mid] < key) lo = mid + 1; else hi = mid - 1;
+  }
+  return false;
+}
+
+void candidateSteps(uint32_t c, uint8_t* out) {
+  uint16_t t = c / PATTERN_COUNT, b = c % PATTERN_COUNT;
+  for (uint8_t k = 0; k < PATTERN_STEPS; k++)
+    out[k] = remapTo[t % 24][SHOW_STEPS[b * PATTERN_STEPS + stepIndex(t, k)]];
+}
+
+// A candidate repeats an earlier one if an earlier transform turns one of the 1000 patterns into it.
+bool isRepeat(uint32_t c) {
+  uint8_t p[PATTERN_STEPS];
+  candidateSteps(c, p);
+  uint16_t t = c / PATTERN_COUNT;
+  for (uint16_t u = 0; u < t; u++) {
+    uint32_t key = 0;
+    for (uint8_t k = 0; k < PATTERN_STEPS; k++) key |= (uint32_t)remapFrom[u % 24][p[k]] << (4 * stepIndex(u, k));
+    if (isBasePattern(key)) return true;
+  }
+  return false;
+}
+
+void firstVariation(Variation& v) {
+  v.cand = 0;
+  v.num = 0;
+  candidateSteps(0, v.steps);
+}
+
+void nextVariation(Variation& v) {
+  if (++v.num >= VARIATION_COUNT) { firstVariation(v); return; }   // after all 1 lakh, start again
+  do { v.cand++; } while (v.cand < (uint32_t)TRANSFORMS * PATTERN_COUNT && isRepeat(v.cand));
+  if (v.cand >= (uint32_t)TRANSFORMS * PATTERN_COUNT) { firstVariation(v); return; }
+  candidateSteps(v.cand, v.steps);
+}
+
 bool showOn = false, showSavedAuto = false;
 uint16_t showStep = 0;
 uint32_t showT = 0;
@@ -1245,20 +1338,23 @@ void nextNote(uint16_t i) {
   partyNoteMs = (uint32_t)songLen[i] * 15000UL / songBpm;   // 60000 / bpm / 4
   partyGap = false;
   uint32_t bar = partyNoteSix / 16;                          // 16 sixteenths = one bar
-  if (bar != partyBar) { partyBar = bar; partyHit = 0; }
+  if (bar != partyBar) {   // a new bar: the next variation
+    if (partyBar != 0xFFFFFFFFUL) for (uint32_t n = partyBar; n < bar; n++) nextVariation(partyVar);
+    partyBar = bar;
+    partyHit = 0;
+  }
   if (songNote[i] == 0) {
     state = B_WT;
   } else {
-    uint32_t base = ((partyPattern + bar) % PATTERN_COUNT) * PATTERN_STEPS;
     uint8_t m = 0;
-    for (uint8_t k = 0; k < PATTERN_STEPS && m == 0; k++) m = SHOW_STEPS[base + (partyHit++ % PATTERN_STEPS)];
+    for (uint8_t k = 0; k < PATTERN_STEPS && m == 0; k++) m = partyVar.steps[partyHit++ % PATTERN_STEPS];
     state = m | B_WT;
   }
   applyOutputs();
 }
 
 void showFrame() {
-  state = SHOW_STEPS[showStep] | B_WT;   // the wind turbines spin for the whole show
+  state = showVar.steps[showStep] | B_WT;   // the wind turbines spin for the whole show
   applyOutputs();
 }
 
@@ -1275,6 +1371,7 @@ void startShow() {
   autoMode = false;
   showOn = true;
   showStep = 0;
+  firstVariation(showVar);
   showT = millis();
   showFrame();
   statusDue = true;
@@ -1283,8 +1380,8 @@ void startShow() {
 void stopParty(bool restore) {
   if (!partyOn) return;
   partyOn = false;
-  // the next party starts on the pattern after the last one this party reached
-  partyPattern = (partyPattern + partyBar + 1) % PATTERN_COUNT;
+  // the next party starts on the variation after the last one this party reached
+  nextVariation(partyVar);
   if (restore) { state = partySaved; autoMode = partySavedAuto; }
   applyOutputs();
   statusDue = true;
@@ -1382,6 +1479,9 @@ void setup() {
 
   const uint8_t outs[] = { PIN_SL, PIN_BL, PIN_GR, PIN_RD, PIN_M1_A, PIN_M1_B, PIN_M2_A, PIN_M2_B };
   for (uint8_t p : outs) { pinMode(p, OUTPUT); digitalWrite(p, LOW); }
+  setupVariations();
+  firstVariation(showVar);
+  firstVariation(partyVar);
   analogSetPinAttenuation(PIN_LDR, ADC_11db);   // full 0-3.3 V range on the LDR pin
   updateLdr();
   followLdr();
@@ -1441,7 +1541,7 @@ void loop() {
     showStepped = true;
     showT += SHOW_STEP_MS;
     if (now - showT >= SHOW_STEP_MS) showT = now;   // after a long stall, carry on instead of racing to catch up
-    showStep = (showStep + 1) % SHOW_LEN;
+    if (++showStep >= PATTERN_STEPS) { showStep = 0; nextVariation(showVar); }   // next bar, next variation
     showFrame();
   }
 

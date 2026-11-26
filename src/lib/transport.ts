@@ -1,5 +1,5 @@
 import { NUS_NOTIFY, NUS_SERVICE, NUS_WRITE, formatStatus, initialState, type CityState } from "./smartcity";
-import { PATTERN_COUNT, PATTERN_STEPS, showLights, SHOW_STEP_MS, SHOW_STEPS } from "./show";
+import { PATTERN_STEPS, showLights, SHOW_STEP_MS, VARIATION_COUNT, variationSteps } from "./show";
 
 export interface Transport {
   send(cmd: string): Promise<void>;
@@ -205,10 +205,12 @@ export function connectDemo(h: Handlers): Transport {
   let bpm = 120;
   let song: { pitch: number; sixteenths: number }[] = [];
   // stage show, simulated like the firmware: same patterns and tempo, turbines on, city restored afterwards
+  // the show walks through the 1 lakh variations, one bar each
   let show: { timer: ReturnType<typeof setInterval>; saved: CityState; step: number } | null = null;
   const showFrame = () => {
     if (!show || closed) return;
-    Object.assign(s, showLights(SHOW_STEPS[show.step] ?? 0), { WT: true, AUTO: false, SH: true });
+    const bar = Math.floor(show.step / PATTERN_STEPS) % VARIATION_COUNT;
+    Object.assign(s, showLights(variationSteps(bar)[show.step % PATTERN_STEPS] ?? 0), { WT: true, AUTO: false, SH: true });
     h.onLine(formatStatus(s));
   };
   const stopShow = (restore: boolean) => {
@@ -221,15 +223,15 @@ export function connectDemo(h: Handlers): Transport {
   const startShow = () => {
     const saved = show ? show.saved : { ...s };
     if (show) clearInterval(show.timer);
-    show = { saved, step: 0, timer: setInterval(() => { if (show) { show.step = (show.step + 1) % SHOW_STEPS.length; showFrame(); } }, SHOW_STEP_MS) };
+    show = { saved, step: 0, timer: setInterval(() => { if (show) { show.step = (show.step + 1) % (VARIATION_COUNT * PATTERN_STEPS); showFrame(); } }, SHOW_STEP_MS) };
     showFrame();
   };
   let party: { timer: ReturnType<typeof setTimeout>; saved: CityState; bar: number } | null = null;
-  let partyPattern = 0;   // like the firmware, each party carries on from where the last one stopped
+  let partyVariation = 0;   // like the firmware, each party carries on from where the last one stopped
   const stopParty = (restore: boolean) => {
     if (!party) return;
     clearTimeout(party.timer);
-    partyPattern = (partyPattern + Math.max(0, party.bar) + 1) % PATTERN_COUNT;
+    partyVariation = (partyVariation + Math.max(0, party.bar) + 1) % VARIATION_COUNT;
     if (restore) Object.assign(s, { ...party.saved, LDR: s.LDR, DK: s.DK, THR: s.THR, LON: s.LON });
     party = null;
     s.MU = false;
@@ -250,8 +252,8 @@ export function connectDemo(h: Handlers): Transport {
       if (bar !== p.bar) { p.bar = bar; hit = 0; }
       let mask = 0;
       if (note.pitch > 0) {
-        const base = ((partyPattern + bar) % PATTERN_COUNT) * PATTERN_STEPS;
-        for (let k = 0; k < PATTERN_STEPS && !mask; k++) mask = SHOW_STEPS[base + (hit++ % PATTERN_STEPS)] ?? 0;
+        const steps = variationSteps(partyVariation + bar);
+        for (let k = 0; k < PATTERN_STEPS && !mask; k++) mask = steps[hit++ % PATTERN_STEPS] ?? 0;
       }
       lights(mask);
       index++; six += note.sixteenths; due += ms;

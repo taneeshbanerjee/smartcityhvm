@@ -1,6 +1,6 @@
 /**
  * Light patterns for the stage Show and Party Mode: 1000 patterns of one bar (8 steps), all
- * different. The ESP32 runs them itself (no Bluetooth latency); demo mode plays the same table.
+ * different, which make 1 lakh different variations (see the end of this file). The ESP32 runs them itself (no Bluetooth latency); demo mode plays the same table.
  * The firmware's SHOW_STEPS must stay identical to SHOW_STEPS here (a test compares them).
  *
  * Light bits: 1 = street (white), 2 = building (yellow), 4 = green, 8 = red. The wind turbines
@@ -187,4 +187,52 @@ export const SHOW_STEPS: number[] = SHOW_PATTERNS.flatMap((p) => p.steps);
 
 export function showLights(mask: number) {
   return { SL: !!(mask & W), BL: !!(mask & Y), GR: !!(mask & G), RD: !!(mask & R) };
+}
+
+/* ---------- 1 lakh (100,000) variations ---------- */
+
+/**
+ * The ESP32 plays 1 lakh different variations: the 1000 patterns above, each with the lights in
+ * any of 24 colour orders, forwards or backwards, and starting from any of its 8 steps. It works
+ * them out as it goes (a table would not fit in its memory) and skips any that repeat an earlier
+ * one. This is the same calculation, so demo mode and the tests match the firmware exactly.
+ */
+export const VARIATION_COUNT = 100_000;
+export const TRANSFORMS = 384;
+/** The 24 orders of the four lights, the same order as LIGHT_ORDERS in the firmware. */
+export const LIGHT_ORDERS: readonly number[][] = PERMS;
+
+const REMAP = LIGHT_ORDERS.map((o) => Array.from({ length: 16 }, (_, m) => o.reduce((r, light, i) => (m & (1 << i) ? r | light : r), 0)));
+const stepIndex = (t: number, k: number) => {
+  const j = (k + (Math.floor(t / 48) % 8)) % PATTERN_STEPS;
+  return Math.floor(t / 24) % 2 ? PATTERN_STEPS - 1 - j : j;
+};
+
+/** Candidate c: transform t = c / 1000 applied to pattern c % 1000. */
+export function candidateSteps(c: number): number[] {
+  const t = Math.floor(c / PATTERN_COUNT), b = c % PATTERN_COUNT;
+  return Array.from({ length: PATTERN_STEPS }, (_, k) => REMAP[t % 24]![SHOW_STEPS[b * PATTERN_STEPS + stepIndex(t, k)]!]!);
+}
+
+const key = (steps: number[]) => steps.reduce((sum, v, k) => sum + v * 16 ** k, 0);
+
+let candidates: Int32Array | null = null;
+/** The candidate behind each of the 1 lakh variations (repeats skipped), worked out on first use. */
+export function variationCandidates(): Int32Array {
+  if (candidates) return candidates;
+  const out = new Int32Array(VARIATION_COUNT), seen = new Set<number>();
+  let n = 0;
+  for (let c = 0; n < VARIATION_COUNT && c < TRANSFORMS * PATTERN_COUNT; c++) {
+    const k = key(candidateSteps(c));
+    if (!seen.has(k)) { seen.add(k); out[n++] = c; }
+  }
+  candidates = out;
+  return out;
+}
+
+/** The 8 light steps of variation n (0-based; wraps after 1 lakh). */
+export function variationSteps(n: number): number[] {
+  const i = n % VARIATION_COUNT;
+  if (i < PATTERN_COUNT) return candidateSteps(i);   // the first 1000 are the patterns as written
+  return candidateSteps(variationCandidates()[i]!);
 }

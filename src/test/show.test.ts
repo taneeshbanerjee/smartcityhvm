@@ -24,6 +24,21 @@ describe("stage light show", () => {
     expect(SHOW_STEP_MS).toBe(234);
   });
 
+  it("makes 1 lakh different variations, worked out the same way as the firmware", async () => {
+    const { VARIATION_COUNT, TRANSFORMS, LIGHT_ORDERS, variationSteps } = await import("@/lib/show");
+    const ino = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"), "utf8");
+    expect(VARIATION_COUNT).toBe(100_000);
+    expect(ino).toContain("const uint32_t VARIATION_COUNT = 100000;");
+    expect(ino).toContain(`const uint16_t TRANSFORMS = ${TRANSFORMS};`);
+    const orders = ino.slice(ino.indexOf("LIGHT_ORDERS[24][4] = {"), ino.indexOf("};", ino.indexOf("LIGHT_ORDERS[24][4] = {")));
+    expect([...orders.matchAll(/\{(\d+), (\d+), (\d+), (\d+)\}/g)].map((m) => m.slice(1).map(Number))).toEqual(LIGHT_ORDERS);
+    const all = Array.from({ length: VARIATION_COUNT }, (_, n) => variationSteps(n));
+    expect(new Set(all.map((v) => v.join())).size).toBe(VARIATION_COUNT);   // all different
+    expect(all.slice(0, 1000).map((v) => v.join())).toEqual(SHOW_PATTERNS.map((p) => p.steps.join()));
+    expect(all.every((v) => v.length === 8 && v.filter(Boolean).length >= 2)).toBe(true);
+    expect(variationSteps(VARIATION_COUNT)).toEqual(all[0]);   // starts again after 1 lakh
+  });
+
   it("runs in demo mode at the show tempo with turbines on, and stopping restores the city", async () => {
     vi.useFakeTimers();
     const lines: string[] = [];
