@@ -22,7 +22,7 @@ export async function composePartyMusicWithAI(description: string, apiKey: strin
       model: createGatewayModel(apiKey),
       instructions: [
         "Compose a catchy, upbeat, loopable party melody for the Hariyana Vidya Mandir smart-city model.",
-        "It is played by a single-voice piezo buzzer on an ESP32, so write one monophonic melody line: no chords, no lyrics.",
+        "It is played as a single-voice chiptune on a phone while the ESP32 flashes the city lights to its beat, so write one monophonic melody line: no chords, no lyrics.",
         `Write exactly 4 bars of 4/4 (64 sixteenth notes in total) that loop smoothly; the app repeats them to fill one minute.`,
         `Each note has a MIDI pitch from ${MIN_PITCH} to ${MAX_PITCH} (use 0 for a rest) and a length in sixteenth notes of 2, 4, 6 or 8.`,
         `Choose a tempo from ${MIN_BPM} to ${MAX_BPM} bpm. Use a strong, memorable hook with repetition, and end bar 4 so it leads back to bar 1.`,

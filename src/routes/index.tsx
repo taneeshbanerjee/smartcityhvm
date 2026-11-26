@@ -42,7 +42,9 @@ function Index() {
   const [devName, setDevName] = useState("");
   const [demo, setDemo] = useState(false);
   const [state, setState] = useState<CityState>(initialState);
-  const [thr, setThr] = useState(1500);
+  // Light threshold slider: 0 = automatic (the ESP32 adjusts to the room); follows the ESP32's setting
+  const [thr, setThr] = useState(0);
+  const thrDragging = useRef(false);
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [logOpen, setLogOpen] = useState(false);
   const [showRunning, setShowRunning] = useState(false);
@@ -203,6 +205,8 @@ function Index() {
     for (const command of commands) { log("tx", command); await t.send(command); }
   };
   const toggle = (k: SwitchKey | "AUTO") => send(`${k}:${state[k] ? 0 : 1}`);
+  // The slider shows the threshold the ESP32 reports, except while it is being dragged.
+  useEffect(() => { if (state.THR != null && !thrDragging.current) setThr(state.THR); }, [state.THR]);
   const openModelFullscreen = async () => {
     const frame = modelFrameRef.current;
     if (!frame?.requestFullscreen) {
@@ -382,7 +386,7 @@ function Index() {
 
         <Card title="Sensors" icon={<Gauge size={18} />}>
           <div className="grid gap-3">
-            <Ring label={state.LDR == null ? "LDR" : state.LDR < thr ? "Night" : "Day"} value={state.LDR} max={4095} unit="" />
+            <Ring label={state.LDR == null ? "LDR" : (state.LON != null ? state.DK : state.LDR < (thr || 1500)) ? "Night" : "Day"} value={state.LDR} max={4095} unit="" />
           </div>
         </Card>
 
@@ -412,13 +416,33 @@ function Index() {
 
         <Card title="Auto Mode" icon={<Power size={18} />}>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Lights follow the light sensor — runs on the ESP32 even if the phone disconnects.</p>
-            <Switch checked={state.AUTO} disabled={disabled} onCheckedChange={() => toggle("AUTO")} className="ml-3 scale-125" />
+            <p className="text-sm text-muted-foreground">
+              Street and building lights follow the light sensor: cover it and they come on, shine a light on it and they go off.
+              On whenever the ESP32 starts, and runs on the ESP32 even if the phone disconnects.
+            </p>
+            <Switch checked={state.AUTO} disabled={disabled} onCheckedChange={() => toggle("AUTO")} aria-label="Auto mode" className="ml-3 scale-125" />
           </div>
+          {!state.AUTO && !disabled && (
+            <p className="mt-2 text-xs text-muted-foreground">Auto is off (switching street or building lights by hand turns it off). Turn it on with the sensor uncovered: it re-learns the room's light.</p>
+          )}
           <div className="mt-4">
-            <div className="mb-2 flex justify-between text-sm"><span>Light threshold</span><span className="font-semibold tabular-nums">{thr}</span></div>
-            <Slider min={0} max={4095} step={5} value={[thr]} disabled={disabled}
-              onValueChange={(v) => setThr(v[0] ?? 0)} onValueCommit={(v) => send(`THR:${v[0] ?? 0}`)} />
+            <div className="mb-2 flex justify-between text-sm">
+              <span>Light threshold</span>
+              <span className="font-semibold tabular-nums">{thr === 0 ? "Automatic" : thr}</span>
+            </div>
+            <Slider min={0} max={4095} step={5} value={[thr]} disabled={disabled} aria-label="Light threshold"
+              onValueChange={(v) => { thrDragging.current = true; setThr(v[0] ?? 0); }}
+              onValueCommit={(v) => { thrDragging.current = false; void send(`THR:${v[0] ?? 0}`); }} />
+            <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span className="tabular-nums">
+                {state.LDR != null && state.LON != null ? `Sensor ${state.LDR} · lights on below ${state.LON}` : "Far left = automatic: adjusts to the room."}
+              </span>
+              {thr !== 0 && (
+                <button type="button" disabled={disabled} onClick={() => { setThr(0); void send("THR:0"); }} className="font-semibold underline disabled:opacity-40">
+                  Use automatic
+                </button>
+              )}
+            </div>
           </div>
         </Card>
 

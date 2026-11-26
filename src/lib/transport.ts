@@ -195,8 +195,8 @@ export async function connectBle(showAll: boolean, h: Handlers): Promise<Transpo
 /** Simulated ESP32 for demo mode. */
 export function connectDemo(h: Handlers): Transport {
   h.onDiagnostics?.({ stage: "Demo active — no hardware checked", service: "simulated", write: "simulated", notify: "simulated", notifications: "simulated" });
-  const s: CityState = { ...initialState, LDR: 2200 };
-  let thr = 1500;
+  // Like the firmware: Auto is on from the start, threshold automatic (THR 0)
+  const s: CityState = { ...initialState, AUTO: true, LDR: 2200, THR: 0, LON: 1500 };
   let t = 0;
   let closed = false;
   // party mode, simulated like the firmware: the 100 patterns step on every half beat of the song
@@ -213,7 +213,7 @@ export function connectDemo(h: Handlers): Transport {
   const stopShow = (restore: boolean) => {
     if (!show) return;
     clearInterval(show.timer);
-    if (restore) Object.assign(s, { ...show.saved, LDR: s.LDR });
+    if (restore) Object.assign(s, { ...show.saved, LDR: s.LDR, DK: s.DK, THR: s.THR, LON: s.LON });
     show = null;
     s.SH = false;
   };
@@ -229,7 +229,7 @@ export function connectDemo(h: Handlers): Transport {
     if (!party) return;
     clearInterval(party.timer);
     partyPattern = (partyPattern + Math.floor(Math.max(0, party.half - 1) / PATTERN_STEPS) + 1) % PATTERN_COUNT;
-    if (restore) Object.assign(s, { ...party.saved, LDR: s.LDR });
+    if (restore) Object.assign(s, { ...party.saved, LDR: s.LDR, DK: s.DK, THR: s.THR, LON: s.LON });
     party = null;
     s.MU = false;
   };
@@ -251,9 +251,19 @@ export function connectDemo(h: Handlers): Transport {
     step();
   };
   const emit = () => setTimeout(() => { if (!closed) h.onLine(formatStatus(s)); }, 120);
+  // The demo's sensor is a slow sine wave, so "automatic" uses a fixed level of 1500 here; the
+  // firmware learns the room's light level instead. Hysteresis like the firmware.
   const applyAuto = () => {
-    if (s.AUTO) { const dark = (s.LDR ?? 0) < thr; s.SL = dark; s.BL = dark; }
+    const thr = s.THR ?? 0;
+    const on = thr > 0 ? Math.max(0, thr - 100) : 1500;
+    const off = thr > 0 ? Math.min(4095, thr + 100) : 1700;
+    s.LON = on;
+    const ldr = s.LDR ?? 0;
+    if (ldr < on) s.DK = true;
+    else if (ldr > off) s.DK = false;
+    if (s.AUTO) { s.SL = s.DK; s.BL = s.DK; }
   };
+  applyAuto();
   const timer = setInterval(() => {
     t += 0.15;
     s.LDR = Math.round(2048 + 1900 * Math.sin(t));
@@ -276,10 +286,14 @@ export function connectDemo(h: Handlers): Transport {
       }
       if (!["GET", "MB", "MA", "MP"].includes(k)) stopShow(true);
       if (k === "MB" || k === "MP") { setTimeout(() => { if (!closed) h.onLine("OK:" + cmd); }, 60); emit(); return; }
-      if (k in s && (v === "0" || v === "1")) (s as any)[k] = v === "1";
-      else if (k === "THR") thr = Number(v) || 0;
-      else if (k === "ALL") (["SL", "BL", "GR", "RD", "WT"] as const).forEach((x) => (s[x] = false));
+      if (k === "THR") s.THR = Math.min(4095, Math.max(0, Number(v) || 0));
+      else if (k in s && (v === "0" || v === "1")) {
+        (s as any)[k] = v === "1";
+        if (k === "SL" || k === "BL") s.AUTO = false;   // switching a light by hand turns Auto off
+      }
+      else if (k === "ALL") { (["SL", "BL", "GR", "RD", "WT"] as const).forEach((x) => (s[x] = false)); s.AUTO = false; }
       else if (k === "SCENE") {
+        s.AUTO = false;
         // same scenes as the ESP32 firmware (SL, BL, GR, RD, WT); the show is handled above
         const p: Record<string, boolean[]> = {
           day: [false, false, true, false, true],

@@ -18,10 +18,13 @@ const commands = [
   ["GR:1 / GR:0", "Green status lights on / off"],
   ["RD:1 / RD:0", "Red beacons on / off"],
   ["WT:1 / WT:0", "Wind turbines on / off (drives both motor outputs of the L298N together)."],
-  ["AUTO:1 / AUTO:0", "Enable / disable sensor-controlled street and building lights."],
   [
-    "THR:1500",
-    "Set the light threshold (0–4095). With Auto on, LDR below the threshold turns lights on; otherwise off.",
+    "AUTO:1 / AUTO:0",
+    "Enable / disable sensor-controlled street and building lights (on when the ESP32 starts). AUTO:1 also re-learns the room's light, so send it with the sensor uncovered. SL or BL by hand turns Auto off.",
+  ],
+  [
+    "THR:0 / THR:1500",
+    "Light threshold. THR:0 = automatic (default): lights on when the sensor drops below 70% of the room's light, off above 80%. THR:1–4095 = fixed: lights on below it, off above it.",
   ],
   [
     "ALL:0",
@@ -35,10 +38,10 @@ const commands = [
     "Start the stage light show. The ESP32 runs it itself (no Bluetooth delay): 128 BPM, a new step every half beat, 100 patterns, turbines on, looping until stopped.",
   ],
   ["SHOW:0", "Stop the show; the city returns to how it was before. Any other command also ends the show first."],
-  ["MB:120", "Start a new party song at this tempo (60–180 BPM)."],
+  ["MB:120", "Start a new party song at this tempo (60–180 BPM). The ESP32 uses the song only for its beat; the phone plays it."],
   ["MA:3C044004", "Add up to 15 song notes, 4 hex digits each: MIDI note (00 = rest), then length in 16th notes."],
-  ["MP:1 / MP:0", "Start / stop party mode: the buzzer plays the song and the lights flash each bar, then the city is restored."],
-  ["GET", "Request current output states, Auto state, party music state, and LDR reading."],
+  ["MP:1 / MP:0", "Start / stop party mode: the lights flash to the song's beat (the phone plays the song), then the city is restored."],
+  ["GET", "Request current output states, Auto state, party state, LDR reading and light threshold."],
 ];
 
 export function TestingTools({
@@ -110,10 +113,11 @@ export function TestingTools({
           <section className="space-y-2 border-t border-border pt-4">
             <h3 className="font-semibold">Device replies</h3>
             <code className="block break-all rounded-md bg-muted p-3 text-xs">
-              ST:SL=1,BL=0,GR=0,RD=0,WT=0,AUTO=0,MU=0,SH=0;LDR=732
+              ST:SL=1,BL=1,GR=0,RD=0,WT=0,AUTO=1,MU=0,SH=0,DK=1;LDR=732,THR=0,LON=1680
             </code>
             <p className="text-sm text-muted-foreground">
-              Output, Auto, MU (party music) and SH (show) values: 0 = off, 1 = on. LDR: sensor reading. Other
+              Output, Auto, MU (party) and SH (show) values: 0 = off, 1 = on. DK = 1 when the sensor sees dark. LDR: sensor
+              reading (0 dark – 4095 bright). THR: threshold setting (0 = automatic). LON: lights come on below this. Other
               replies, including OK acknowledgements, appear in the Activity log.
             </p>
             <p className="text-sm text-muted-foreground">

@@ -21,8 +21,14 @@ describe("ESP32 pins match the circuit diagram (pages 1-4)", () => {
     const ino = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"), "utf8");
     const pins = Object.fromEntries([...ino.matchAll(/const uint8_t (PIN_\w+)\s*=\s*(\d+);/g)].map((m) => [m[1], Number(m[2])]));
     for (const [name, pin] of Object.entries(DIAGRAM)) expect(pins[name], name).toBe(pin);
-    // no two parts share a pin
+    // nothing else is wired: exactly the diagram's pins, and no two parts share a pin
+    expect(Object.keys(pins).sort()).toEqual(Object.keys(DIAGRAM).sort());
     const used = Object.values(pins);
     expect(new Set(used).size).toBe(used.length);
+  });
+
+  it("has no buzzer: no buzzer pin and no tone output", () => {
+    const ino = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"), "utf8");
+    expect(ino).not.toMatch(/BUZ|\btone\s*\(|noTone|GPIO23|D23/i);
   });
 });

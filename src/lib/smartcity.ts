@@ -11,19 +11,29 @@ export interface CityState {
   SL: boolean; BL: boolean; GR: boolean; RD: boolean;
   /** Wind turbines: the ESP32 drives both motor outputs together. */
   WT: boolean; AUTO: boolean;
-  /** Party music playing on the ESP32 buzzer. */
+  /** Party running: the phone plays the song and the ESP32 flashes the lights to its beat. */
   MU: boolean;
   /** Stage light show running on the ESP32. */
   SH: boolean;
+  /** The ESP32's own decision: the light sensor sees dark (Auto turns the lights on). */
+  DK: boolean;
+  /** Light sensor reading, 0 (dark) to 4095 (bright). */
   LDR: number | null;
+  /** Threshold setting on the ESP32: 0 = automatic (adjusts to the room), otherwise fixed. */
+  THR: number | null;
+  /** The lights come on when LDR falls below this reading. */
+  LON: number | null;
 }
 
 export const initialState: CityState = {
-  SL: false, BL: false, GR: false, RD: false, WT: false, AUTO: false, MU: false, SH: false,
-  LDR: null,
+  SL: false, BL: false, GR: false, RD: false, WT: false, AUTO: false, MU: false, SH: false, DK: false,
+  LDR: null, THR: null, LON: null,
 };
 
-/** Parse "ST:SL=1,BL=0,...,AUTO=1,MU=0,SH=0;LDR=732". Returns null if malformed. */
+const FLAG_KEYS = ["AUTO", "MU", "SH", "DK"];
+const NUMBER_KEYS = ["LDR", "THR", "LON"] as const;
+
+/** Parse "ST:SL=1,BL=0,...,AUTO=1,MU=0,SH=0,DK=0;LDR=732,THR=0,LON=1440". Returns null if malformed. */
 export function parseStatus(line: string): Partial<CityState> | null {
   const t = line.trim();
   if (!t.startsWith("ST:")) return null;
@@ -35,14 +45,14 @@ export function parseStatus(line: string): Partial<CityState> | null {
     if (!k || v === undefined) continue;
     const key = k.trim().toUpperCase();
     const val = v.trim();
-    if ((SWITCH_KEYS as string[]).includes(key) || key === "AUTO" || key === "MU" || key === "SH") {
+    if ((SWITCH_KEYS as string[]).includes(key) || FLAG_KEYS.includes(key)) {
       if (val !== "0" && val !== "1") continue;
       (out as Record<string, boolean>)[key] = val === "1";
       any = true;
-    } else if (key === "LDR") {
+    } else if ((NUMBER_KEYS as readonly string[]).includes(key)) {
       const n = Number(val);
-      if (!Number.isFinite(n)) continue;
-      out[key] = n;
+      if (val === "" || !Number.isFinite(n)) continue;
+      out[key as (typeof NUMBER_KEYS)[number]] = n;
       any = true;
     }
   }
@@ -51,7 +61,8 @@ export function parseStatus(line: string): Partial<CityState> | null {
 
 export function formatStatus(s: CityState): string {
   const b = (x: boolean) => (x ? 1 : 0);
-  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},AUTO=${b(s.AUTO)},MU=${b(s.MU)},SH=${b(s.SH)};LDR=${Math.round(s.LDR ?? 0)}`;
+  return `ST:SL=${b(s.SL)},BL=${b(s.BL)},GR=${b(s.GR)},RD=${b(s.RD)},WT=${b(s.WT)},AUTO=${b(s.AUTO)},MU=${b(s.MU)},SH=${b(s.SH)},DK=${b(s.DK)};` +
+    `LDR=${Math.round(s.LDR ?? 0)},THR=${Math.round(s.THR ?? 0)},LON=${Math.round(s.LON ?? 0)}`;
 }
 
 /** Map spoken phrase to commands. Returns null if not understood. */

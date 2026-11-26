@@ -21,7 +21,7 @@ const MAX_LENGTH = 300;
 export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop }: {
   connected: boolean;
   demo: boolean;
-  /** MU reported by the ESP32 (or demo): the buzzer is playing. */
+  /** MU reported by the ESP32 (or demo): the party is running. */
   musicPlaying: boolean;
   /** Send the commands in order; rejects if one can't be sent. */
   onStart: (commands: string[]) => Promise<void>;
@@ -100,8 +100,8 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
       await onStart(songCommands(song));
       setNow(Date.now());
       setStartedAt(Date.now());
-      // In demo mode there's no robot, so the phone plays what its buzzer would play.
-      if (demo) playOnPhone(song);
+      // The phone plays the song; the ESP32 keeps the same beat and flashes the lights to it.
+      playOnPhone(song);
       toast.success(`Party started: “${song.title}”`);
     } catch {
       toast.error("Couldn't send the song to the city. Check the Bluetooth connection and try again.");
@@ -122,7 +122,7 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Describe the mood, then make a full song with Suno for the karaoke speaker, or a 1-minute tune the robot plays on its buzzer while the city's lights flash to the beat.
+        Describe the mood, then make a full song with Suno for the karaoke speaker, or a 1-minute tune the phone plays while the city's lights flash to the beat.
       </p>
       <label htmlFor="party-music-mood" className="sr-only">Describe the party music</label>
       <Textarea
@@ -135,7 +135,7 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
         className="glass-control resize-none"
       />
       <SunoPromptPanel mood={description} />
-      <p className="pt-1 text-sm font-semibold">Buzzer tune for the robot</p>
+      <p className="pt-1 text-sm font-semibold">Party tune</p>
       <div className="grid grid-cols-[1fr_auto] gap-2">
         <Button onClick={() => { void composeWithAI(); }} disabled={busy !== null || partyOn} className="h-11 rounded-xl">
           {busy === "composing" ? <Loader2 className="animate-spin" /> : <WandSparkles />}
@@ -188,8 +188,8 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
           </div>
           <p className="text-xs text-muted-foreground">
             {!connected ? "Connect to the city or start Demo mode to start the party." :
-              demo ? "Demo mode: the phone plays what the robot's buzzer would play." :
-                "The song is sent to the robot first, then it plays on the buzzer (GPIO 23) by itself."}
+              demo ? "Demo mode: the phone plays the song and the simulated city flashes to the beat." :
+                "The song's beat is sent to the city first, then the phone plays the song while the ESP32 flashes the lights to it. Turn the phone's volume up."}
           </p>
         </div>
       )}

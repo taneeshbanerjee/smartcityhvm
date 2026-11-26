@@ -1,6 +1,7 @@
 /**
  * Party mode music: a short melody (from Lovable AI or the built-in composer) is looped to exactly
- * one minute and sent to the ESP32, which plays it on its buzzer and flashes the city lights each bar.
+ * one minute. The phone plays it, and its notes are sent to the ESP32, which keeps the song's beat and
+ * flashes the city lights to it.
  *
  * Protocol (see the firmware header): MB:<bpm> starts a song, MA:<notes> adds up to 15 notes
  * (4 hex digits each: MIDI note, 00 = rest, then length in 16th notes), MP:1 / MP:0 start / stop.
@@ -9,7 +10,7 @@
 export const SONG_SECONDS = 60;
 export const MIN_BPM = 90;
 export const MAX_BPM = 150;
-/** A passive buzzer sounds clear between about C4 and C7. */
+/** A square-wave tune sounds clear between about C4 and C7. */
 export const MIN_PITCH = 60;
 export const MAX_PITCH = 96;
 const NOTES_PER_LINE = 15;
@@ -22,7 +23,7 @@ export type PartySong = PartyMotif & { source: "ai" | "built-in" };
 
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 
-/** Fold a MIDI note into the buzzer's range by octaves; 0 stays a rest. */
+/** Fold a MIDI note into the tune's range by octaves; 0 stays a rest. */
 export function foldPitch(pitch: number): number {
   if (!Number.isFinite(pitch) || pitch <= 0) return 0;
   let p = Math.round(pitch);
@@ -31,7 +32,7 @@ export function foldPitch(pitch: number): number {
   return p;
 }
 
-/** Validate a melody (e.g. from the model) into something the buzzer can play, or null. */
+/** Validate a melody (e.g. from the model) into something playable, or null. */
 export function normalizeMotif(value: unknown): PartyMotif | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const v = value as Record<string, unknown>;
@@ -123,7 +124,7 @@ export type SongPlayback = { stop: () => void; done: Promise<void> };
 
 type AudioContextConstructor = typeof AudioContext;
 
-/** Play the song with a square wave, like the buzzer, through the phone's speaker. */
+/** Play the song with a square wave (a chiptune sound) through the phone's speaker. */
 export function playSongOnPhone(song: PartySong): SongPlayback | null {
   const Ctx = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioContextConstructor }).webkitAudioContext);
   if (!Ctx) return null;

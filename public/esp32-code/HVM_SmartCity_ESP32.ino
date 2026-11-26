@@ -9,7 +9,11 @@
     SL:1/0  street lights (white LEDs)      BL:1/0  building lights (yellow LEDs)
     GR:1/0  green LEDs                      RD:1/0  red beacons
     WT:1/0  wind turbines (both motor outputs of the L298N together)
-    AUTO:1/0  lights follow the LDR         THR:<0-4095>  dark/light threshold
+    AUTO:1/0  street + building lights follow the LDR (Auto is ON when the ESP32 starts;
+              switching SL or BL by hand turns Auto off, AUTO:1 turns it back on).
+              AUTO:1 also re-learns the room's light level, so send it with the LDR uncovered.
+    THR:0       automatic light threshold: adjusts itself to the room (default)
+    THR:<1-4095> fixed threshold: lights on below it, off above it
     ALL:0   everything off                  GET     send status now
     SCENE:day|night|eco|show
     SHOW:0  stop the show (the city returns to how it was before the show)
@@ -18,19 +22,25 @@
   a new step every half beat (~234 ms), 100 patterns of one bar each, looping until stopped.
   The wind turbines spin for the whole show. Any other command ends it and restores the city first.
 
-  PARTY MODE (1-minute song on the buzzer; the lights step through the 100 patterns on every
-  half beat of the song, a new pattern every bar, each party continuing where the last ended):
+  PARTY MODE (the phone plays the 1-minute song; the ESP32 keeps the song's beat and steps the
+  lights through the 100 patterns on every half beat, a new pattern every bar, each party
+  continuing where the last ended):
     MB:<60-180>       start a new song at this tempo (beats per minute)
     MA:<notes>        add up to 15 notes, 4 hex digits each: 2 = MIDI note
                       (00 = rest), 2 = length in 16th notes. e.g. MA:3C044004
     MP:1 / MP:0       start / stop the party (the city returns to how it was)
 
-  STATUS (sent about once a second and after every command):
-    ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0,SH=0;LDR=732
-    (MU=1 while the party music is playing, SH=1 while the show is running)
+  STATUS (sent about once a second, after every command and whenever Auto switches the lights):
+    ST:SL=1,BL=0,GR=1,RD=0,WT=1,AUTO=1,MU=0,SH=0,DK=0;LDR=2400,THR=0,LON=1440
+    MU=1 while the party song is playing, SH=1 while the show is running,
+    DK=1 when the LDR sees dark, LDR = light reading (0 = dark ... 4095 = bright),
+    THR = threshold setting (0 = automatic), LON = the lights come on below this reading.
 
-  BUZZER: passive buzzer + -> 100 ohm resistor -> GPIO23, buzzer - -> GND.
-  (A small speaker also works through an NPN transistor driver.)
+  LIGHT SENSOR (circuit diagram page 4): 3V3 -> LDR -> GPIO32, and GPIO32 -> resistor -> GND.
+  More light = higher reading. Automatic threshold: the ESP32 learns the room's normal light
+  level (the middle value of the last 2 minutes, so a finger or a torch for under a minute doesn't
+  change it), turns the lights on when the reading drops below 70% of it (cover the LDR with a
+  finger, or the room goes dark) and off again above 80% of it (uncover it, or shine a light on it).
 */
 
 #include <BLEDevice.h>
@@ -57,22 +67,29 @@ const uint8_t PIN_M1_B = 26;  // motor driver IN2
 const uint8_t PIN_M2_A = 25;  // motor driver IN3  -> motor channel 2 (OUT3/OUT4)
 const uint8_t PIN_M2_B = 33;  // motor driver IN4
 const uint8_t PIN_LDR  = 32;  // LDR junction: 3V3 -> LDR -> GPIO32 -> resistor -> GND
-const uint8_t PIN_BUZ  = 23;  // passive buzzer (party music)
 
 // ---------- State ----------
 enum : uint8_t { B_SL = 1, B_BL = 2, B_GR = 4, B_RD = 8, B_WT = 16 };
 uint8_t state = 0;
-bool autoMode = false;
-int threshold = 1500;      // LDR reading below this = dark
+bool autoMode = true;      // street + building lights follow the LDR from power-up
+int thrManual = 0;         // 0 = automatic threshold, 1..4095 = fixed threshold (THR command)
 int lastLdr = 0;
+const uint8_t REF_N = 60;  // room light level: the last 60 readings, one every 2 seconds
+int refBuf[REF_N];
+bool refReady = false;
+uint8_t refPos = 0;
+uint32_t refT = 0;
+int ldrRef = 0;            // the room's normal light level (median of refBuf)
+bool ldrDark = false;      // what the LDR sees right now, with hysteresis
+int lightsOnBelow = 0, lightsOffAbove = 0;
 
-// ---------- Party mode (song + lights to the beat) ----------
+// ---------- Party mode (lights to the beat of the song the phone plays) ----------
 const uint16_t MAX_NOTES = 400;
 uint8_t songNote[MAX_NOTES];   // MIDI note number, 0 = rest
 uint8_t songLen[MAX_NOTES];    // length in 16th notes
 uint16_t songCount = 0;
 uint16_t songBpm = 120;
-bool partyOn = false, toneOn = false;
+bool partyOn = false;
 uint16_t partyIdx = 0;
 uint32_t partyNoteT = 0, partyNoteMs = 0, partySix = 0, partyNoteSix = 0, partyEighth = 0;
 uint8_t partySaved = 0;
@@ -200,7 +217,7 @@ BLECharacteristic* pTx = nullptr;
 volatile bool connected = false;
 bool wasConnected = false;
 bool statusDue = false;
-uint32_t statT = 0, autoT = 0;
+uint32_t statT = 0, ldrT = 0;
 
 // command queue (filled by the BLE callback, used in loop); a song upload sends ~20 lines in a row
 String cmdQ[32];
@@ -229,16 +246,73 @@ void applyOutputs() {
 
 int readLdr() {
   long s = 0;
-  for (int i = 0; i < 8; i++) s += analogRead(PIN_LDR);
-  return (int)(s / 8);
+  for (int i = 0; i < 16; i++) s += analogRead(PIN_LDR);
+  return (int)(s / 16);
+}
+
+int medianOf(const int* a) {
+  int t[REF_N];
+  for (uint8_t i = 0; i < REF_N; i++) {   // insertion sort (60 values, every 2 s)
+    int v = a[i], j = i;
+    while (j > 0 && t[j - 1] > v) { t[j] = t[j - 1]; j--; }
+    t[j] = v;
+  }
+  return (t[REF_N / 2 - 1] + t[REF_N / 2]) / 2;
+}
+
+// Read the LDR and decide dark / light. Returns true when it changed between dark and light.
+bool updateLdr() {
+  int r = readLdr();
+  lastLdr = r;
+  uint32_t now = millis();
+  if (!refReady) {                      // first reading: start from the light level at power-up
+    for (uint8_t i = 0; i < REF_N; i++) refBuf[i] = r;
+    refReady = true;
+    refT = now;
+  } else if (now - refT >= 2000) {
+    refT = now;
+    if (!ldrDark) {
+      refBuf[refPos] = r;               // learn the room's light level while it is light
+      refPos = (refPos + 1) % REF_N;
+    } else {
+      // while dark, drift slowly towards the reading (~5 minutes), so the level can never get
+      // stuck too high (e.g. after a torch was held on the LDR for minutes)
+      for (uint8_t i = 0; i < REF_N; i++) {
+        int d = r - refBuf[i], step = d / 150;
+        if (step == 0 && d != 0) step = (d > 0) ? 1 : -1;
+        refBuf[i] += step;
+      }
+    }
+  }
+  ldrRef = medianOf(refBuf);
+  if (thrManual > 0) {
+    lightsOnBelow  = max(0, thrManual - 100);
+    lightsOffAbove = min(4095, thrManual + 100);
+  } else {
+    lightsOnBelow  = max(150, ldrRef * 7 / 10);   // very dark (< 150) always counts as dark
+    lightsOffAbove = max(250, ldrRef * 8 / 10);
+  }
+  bool was = ldrDark;
+  if (r < lightsOnBelow) ldrDark = true;
+  else if (r > lightsOffAbove) ldrDark = false;
+  return ldrDark != was;
+}
+
+// Auto mode: street + building lights on when dark, off when light. Returns true if they changed.
+bool followLdr() {
+  if (!autoMode || (isOn(B_SL) == ldrDark && isOn(B_BL) == ldrDark)) return false;
+  setBit(B_SL, ldrDark);
+  setBit(B_BL, ldrDark);
+  return true;
 }
 
 String statusLine() {
-  char b[110];
+  char b[128];
   snprintf(b, sizeof(b),
-           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,AUTO=%d,MU=%d,SH=%d;LDR=%d\n",
+           "ST:SL=%d,BL=%d,GR=%d,RD=%d,WT=%d,AUTO=%d,MU=%d,SH=%d,DK=%d;LDR=%d,THR=%d,LON=%d\n",
            isOn(B_SL), isOn(B_BL), isOn(B_GR), isOn(B_RD),
-           isOn(B_WT), autoMode ? 1 : 0, partyOn ? 1 : 0, showOn ? 1 : 0, lastLdr);
+           isOn(B_WT), autoMode ? 1 : 0, partyOn ? 1 : 0, showOn ? 1 : 0, ldrDark ? 1 : 0,
+           lastLdr, thrManual, lightsOnBelow);
   return String(b);
 }
 
@@ -273,17 +347,11 @@ bool partyLights(uint32_t now) {
   return true;
 }
 
-void playNote(uint16_t i) {
+// Next note of the song: only its timing is used here (the phone plays the sound).
+void nextNote(uint16_t i) {
   partyNoteSix = partySix;
   partySix += songLen[i];
   partyNoteMs = (uint32_t)songLen[i] * 15000UL / songBpm;   // 60000 / bpm / 4
-  if (songNote[i] > 0) {
-    tone(PIN_BUZ, (unsigned int)(440.0f * powf(2.0f, (songNote[i] - 69) / 12.0f)));
-    toneOn = true;
-  } else if (toneOn) {
-    noTone(PIN_BUZ);
-    toneOn = false;
-  }
 }
 
 void showFrame() {
@@ -310,7 +378,6 @@ void startShow() {
 }
 
 void stopParty(bool restore) {
-  if (toneOn) { noTone(PIN_BUZ); toneOn = false; }
   if (!partyOn) return;
   partyOn = false;
   // the next party starts on the pattern after the last one this party reached
@@ -332,7 +399,7 @@ void startParty() {
   partySix = 0;
   partyEighth = 0xFFFFFFFFUL;
   partyNoteT = millis();
-  playNote(0);
+  nextNote(0);
   partyLights(partyNoteT);
   statusDue = true;
 }
@@ -372,8 +439,13 @@ void handleCommand(String s) {
   else if (k == "GR")   { setBit(B_GR, n != 0); }
   else if (k == "RD")   { setBit(B_RD, n != 0); }
   else if (k == "WT")   { setBit(B_WT, n != 0); }
-  else if (k == "AUTO") { autoMode = (n != 0); }
-  else if (k == "THR")  { threshold = constrain(n, 0, 4095); }
+  else if (k == "AUTO") {
+    autoMode = (n != 0);
+    if (autoMode) { refReady = false; ldrDark = false; }   // AUTO:1 re-learns the room light now
+    updateLdr();
+    followLdr();
+  }
+  else if (k == "THR")  { thrManual = constrain(n, 0, 4095); updateLdr(); followLdr(); }
   else if (k == "ALL")  { state = 0; autoMode = false; }
   else if (k == "SCENE") {
     autoMode = false;
@@ -408,8 +480,9 @@ void setup() {
 
   const uint8_t outs[] = { PIN_SL, PIN_BL, PIN_GR, PIN_RD, PIN_M1_A, PIN_M1_B, PIN_M2_A, PIN_M2_B };
   for (uint8_t p : outs) { pinMode(p, OUTPUT); digitalWrite(p, LOW); }
-  pinMode(PIN_BUZ, OUTPUT); digitalWrite(PIN_BUZ, LOW);
-  analogSetPinAttenuation(PIN_LDR, ADC_11db);
+  analogSetPinAttenuation(PIN_LDR, ADC_11db);   // full 0-3.3 V range on the LDR pin
+  updateLdr();
+  followLdr();
   applyOutputs();
 
   BLEDevice::init(DEVICE_NAME);
@@ -444,17 +517,11 @@ void loop() {
 
   uint32_t now = millis();
 
-  // 2) Party: next note when this one ends, with a short gap so repeated notes are heard
-  if (partyOn) {
-    uint32_t el = now - partyNoteT;
-    if (el >= partyNoteMs) {
-      partyNoteT += partyNoteMs;   // fixed timeline: short pauses (status replies) never add up to drift
-      if (++partyIdx >= songCount) stopParty(true);
-      else playNote(partyIdx);
-    } else if (toneOn && el >= partyNoteMs - partyNoteMs / 8) {
-      noTone(PIN_BUZ);
-      toneOn = false;
-    }
+  // 2) Party: move to the next note of the song when this one ends
+  if (partyOn && now - partyNoteT >= partyNoteMs) {
+    partyNoteT += partyNoteMs;   // fixed timeline: short pauses (status replies) never add up to drift
+    if (++partyIdx >= songCount) stopParty(true);
+    else nextNote(partyIdx);
   }
   bool partyStepped = partyOn && partyLights(now);
 
@@ -468,15 +535,12 @@ void loop() {
     showFrame();
   }
 
-  // 3) read the LDR, and run Auto mode (works even if the phone disconnects)
-  if (now - autoT >= 500) {
-    autoT = now;
-    lastLdr = readLdr();
-    if (autoMode) {
-      if (lastLdr < threshold - 100)      { setBit(B_SL, true);  setBit(B_BL, true);  }
-      else if (lastLdr > threshold + 100) { setBit(B_SL, false); setBit(B_BL, false); }
-      applyOutputs();
-    }
+  // 3) read the LDR 5 times a second, and run Auto mode (works even if the phone disconnects):
+  //    dark -> street + building lights on, light -> off
+  if (now - ldrT >= 200) {
+    ldrT = now;
+    if (updateLdr()) statusDue = true;   // tell the app straight away
+    if (followLdr()) { applyOutputs(); statusDue = true; }
   }
 
   // 4) send status. During the show or a party the regular update goes out right after a light change,

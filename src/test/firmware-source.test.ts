@@ -9,9 +9,9 @@ describe("original ESP32 firmware source", () => {
     const text = source.toString("utf8");
 
     expect(createHash("sha256").update(source).digest("hex")).toBe(
-      "87103eb158cfe26a066f0e171b3bc38bff5f84e8418ff5a19e069401607498f5",
+      "f8a7913bca7cc7d9968491d9ebdc42a97c822262fb797e560b8ebad92df169aa",
     );
-    expect(text.match(/\n/g)).toHaveLength(498);
+    expect(text.match(/\n/g)).toHaveLength(562);
     expect(text.includes("\r")).toBe(false);
   });
 });

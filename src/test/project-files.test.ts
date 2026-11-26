@@ -7,10 +7,11 @@ import { THREE_R128_CDN, toStandaloneHtml } from "@/lib/standalone-download";
 const file = (path: string) => resolve(process.cwd(), "public", path);
 
 describe("project files on the website", () => {
-  it("has a preview image and a download image for every circuit diagram page, including the buzzer and microphone/speaker/OLED pages", () => {
+  it("has a preview image and a download image for every circuit diagram page, and no buzzer page", () => {
     const pdf = readFileSync(file("circuit-diagram/circuit_diagram.pdf")).toString("latin1");
-    expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(6);
-    for (let n = 1; n <= 6; n++) {
+    expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(5);
+    expect(existsSync(file("circuit-diagram/page-6.png"))).toBe(false);
+    for (let n = 1; n <= 5; n++) {
       expect(existsSync(file(`circuit-diagram/page-${n}.webp`))).toBe(true);
       expect(existsSync(file(`circuit-diagram/page-${n}.png`))).toBe(true);
     }
