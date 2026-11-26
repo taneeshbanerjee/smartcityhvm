@@ -34,14 +34,26 @@ describe("demo mode party", () => {
     demo.disconnect();
   });
 
-  it("steps the lights through the show patterns on every half beat of the song", async () => {
-    const { SHOW_STEPS, showLights } = await import("@/lib/show");
+  it("follows the tune: a lit step for every note, dark on rests, a blink at the end of each note", async () => {
+    const { SHOW_STEPS } = await import("@/lib/show");
+    const song = buildMinuteSong(composeBuiltInMotif(42), "built-in");
     const { demo, last } = await partyDemo([]);
-    const step = 30000 / composeBuiltInMotif(42).bpm;   // half a beat at the song's own tempo
-    const seen: string[] = [];
-    for (let i = 0; i < 8; i++) { const st = last(); seen.push(`${+st.SL!}${+st.BL!}${+st.GR!}${+st.RD!}`); vi.advanceTimersByTime(step); }
-    const want = SHOW_STEPS.slice(0, 8).map((m) => { const l = showLights(m); return `${+l.SL}${+l.BL}${+l.GR}${+l.RD}`; });
-    expect(seen).toEqual(want);
+    const sixteenth = 15000 / song.bpm;
+    const lit = () => { const st = last(); return +st.SL! | (+st.BL! << 1) | (+st.GR! << 2) | (+st.RD! << 3); };
+    const firstBar: number[] = [];
+    let six = 0;
+    for (const note of song.notes.slice(0, 24)) {
+      vi.advanceTimersByTime(1);
+      const mask = lit();
+      if (note.pitch > 0) expect(mask).not.toBe(0); else expect(mask).toBe(0);
+      if (note.pitch > 0 && six < 16) firstBar.push(mask);
+      vi.advanceTimersByTime(note.sixteenths * sixteenth * 0.9 - 1);
+      expect(lit()).toBe(0);   // the blink at the end of the note
+      vi.advanceTimersByTime(note.sixteenths * sixteenth * 0.1);
+      six += note.sixteenths;
+    }
+    // the first bar's notes walk through pattern 1's lit steps in order
+    expect(firstBar).toEqual(SHOW_STEPS.slice(0, 8).filter(Boolean).slice(0, firstBar.length));
     demo.disconnect();
   });
 });

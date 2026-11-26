@@ -97,11 +97,15 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
     setBusy("starting");
     stopPhone();
     try {
-      await onStart(songCommands(song));
+      // Upload the notes first. Then start the sound and, straight after, the lights: the phone's
+      // short audio start-up delay and the Bluetooth delay of MP:1 roughly cancel out, so the
+      // lights land on the notes you hear.
+      const commands = songCommands(song);
+      await onStart(commands.slice(0, -1));
+      playOnPhone(song);
+      try { await onStart(commands.slice(-1)); } catch (error) { stopPhone(); throw error; }
       setNow(Date.now());
       setStartedAt(Date.now());
-      // The phone plays the song; the ESP32 keeps the same beat and flashes the lights to it.
-      playOnPhone(song);
       toast.success(`Party started: “${song.title}”`);
     } catch {
       toast.error("Couldn't send the song to the city. Check the Bluetooth connection and try again.");
@@ -122,7 +126,7 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Describe the mood, then make a full song with Suno for the karaoke speaker, or a 1-minute tune the phone plays while the city's lights flash to the beat.
+        Describe the mood, then make a full song with Suno for the karaoke speaker, or a 1-minute tune the phone plays while the city's lights follow it note by note.
       </p>
       <label htmlFor="party-music-mood" className="sr-only">Describe the party music</label>
       <Textarea
@@ -188,8 +192,8 @@ export function PartyModePanel({ connected, demo, musicPlaying, onStart, onStop 
           </div>
           <p className="text-xs text-muted-foreground">
             {!connected ? "Connect to the city or start Demo mode to start the party." :
-              demo ? "Demo mode: the phone plays the song and the simulated city flashes to the beat." :
-                "The song's beat is sent to the city first, then the phone plays the song while the ESP32 flashes the lights to it. Turn the phone's volume up."}
+              demo ? "Demo mode: the phone plays the tune and the simulated city follows it note by note." :
+                "The notes are sent to the city first, then the phone plays the tune and the ESP32 lights follow it: a step on every note, dark on rests, a new pattern every bar. Turn the phone's volume up."}
           </p>
         </div>
       )}

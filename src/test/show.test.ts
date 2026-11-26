@@ -8,7 +8,7 @@ import { connectDemo } from "@/lib/transport";
 afterEach(() => { vi.useRealTimers(); });
 
 describe("stage light show", () => {
-  it("matches the 100-pattern table in the ESP32 firmware exactly", () => {
+  it("matches the 1000-pattern table in the ESP32 firmware exactly, all patterns different", () => {
     const ino = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"), "utf8");
     const start = ino.indexOf("const uint8_t SHOW_STEPS[] = {");
     const table = ino.slice(ino.indexOf("{", start) + 1, ino.indexOf("};", start));
@@ -16,9 +16,11 @@ describe("stage light show", () => {
     expect(firmware).toEqual(SHOW_STEPS);
     expect(ino).toContain(`const uint16_t SHOW_BPM = ${SHOW_BPM};`);
     expect(ino).toContain(`const uint8_t PATTERN_STEPS = ${PATTERN_STEPS};`);
-    expect(SHOW_PATTERNS).toHaveLength(100);
+    expect(SHOW_PATTERNS).toHaveLength(1000);
     expect(SHOW_PATTERNS.every((p) => p.steps.length === PATTERN_STEPS && p.steps.every((v) => v >= 0 && v <= 15))).toBe(true);
-    expect(new Set(SHOW_PATTERNS.map((p) => p.steps.join())).size).toBe(100);   // all different
+    expect(new Set(SHOW_PATTERNS.map((p) => p.steps.join())).size).toBe(1000);   // all different
+    expect(SHOW_PATTERNS.every((p) => p.steps.filter(Boolean).length >= 2)).toBe(true);   // every bar lights up
+    expect(ino).toContain("const uint16_t PATTERN_COUNT = SHOW_LEN / PATTERN_STEPS;   // 1000");
     expect(SHOW_STEP_MS).toBe(234);
   });
 

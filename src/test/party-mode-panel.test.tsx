@@ -19,10 +19,12 @@ describe("Party mode panel", () => {
     expect(screen.getByText(/BPM · 1:00/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Start party/ }));
 
-    await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
-    const commands = onStart.mock.calls[0]![0];
-    expect(commands[0]).toMatch(/^MB:\d+$/);
-    expect(commands.at(-1)).toBe("MP:1");
+    // the notes go first; MP:1 is sent on its own, right as the phone starts the tune
+    await waitFor(() => expect(onStart).toHaveBeenCalledTimes(2));
+    const upload = onStart.mock.calls[0]![0];
+    expect(upload[0]).toMatch(/^MB:\d+$/);
+    expect(upload.slice(1).every((c) => c.startsWith("MA:"))).toBe(true);
+    expect(onStart.mock.calls[1]![0]).toEqual(["MP:1"]);
     expect(await screen.findByRole("button", { name: /Stop party/ })).toBeInTheDocument();
   });
 

@@ -35,12 +35,12 @@ const commands = [
   ["SCENE:eco", "Request Eco scene."],
   [
     "SCENE:show",
-    "Start the stage light show. The ESP32 runs it itself (no Bluetooth delay): 128 BPM, a new step every half beat, 100 patterns, turbines on, looping until stopped.",
+    "Start the stage light show. The ESP32 runs it itself (no Bluetooth delay): 128 BPM, a new step every half beat, 1000 different patterns (about 31 minutes), turbines on, looping until stopped.",
   ],
   ["SHOW:0", "Stop the show; the city returns to how it was before. Any other command also ends the show first."],
   ["MB:120", "Start a new party song at this tempo (60–180 BPM). The ESP32 uses the song only for its beat; the phone plays it."],
   ["MA:3C044004", "Add up to 15 song notes, 4 hex digits each: MIDI note (00 = rest), then length in 16th notes."],
-  ["MP:1 / MP:0", "Start / stop party mode: the lights flash to the song's beat (the phone plays the song), then the city is restored."],
+  ["MP:1 / MP:0", "Start / stop party mode: the phone plays the song and the lights follow it note by note (a step per note, dark on rests, a new pattern every bar), then the city is restored."],
   ["GET", "Request current output states, Auto state, party state, LDR reading and light threshold."],
 ];
 

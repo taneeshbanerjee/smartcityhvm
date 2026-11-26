@@ -199,10 +199,11 @@ export function connectDemo(h: Handlers): Transport {
   const s: CityState = { ...initialState, AUTO: true, LDR: 2200, THR: 0, LON: 1500 };
   let t = 0;
   let closed = false;
-  // party mode, simulated like the firmware: the 100 patterns step on every half beat of the song
-  // (a new pattern every bar), turbines on, then the city is restored
+  // party mode, simulated like the firmware: the lights follow the tune (each note moves one step on
+  // through the bar's pattern, skipping dark steps; a rest is dark; a short blink ends each note; a
+  // new pattern every bar), turbines on, then the city is restored
   let bpm = 120;
-  let songSixteenths = 0;
+  let song: { pitch: number; sixteenths: number }[] = [];
   // stage show, simulated like the firmware: same patterns and tempo, turbines on, city restored afterwards
   let show: { timer: ReturnType<typeof setInterval>; saved: CityState; step: number } | null = null;
   const showFrame = () => {
@@ -223,32 +224,45 @@ export function connectDemo(h: Handlers): Transport {
     show = { saved, step: 0, timer: setInterval(() => { if (show) { show.step = (show.step + 1) % SHOW_STEPS.length; showFrame(); } }, SHOW_STEP_MS) };
     showFrame();
   };
-  let party: { timer: ReturnType<typeof setInterval>; saved: CityState; half: number } | null = null;
+  let party: { timer: ReturnType<typeof setTimeout>; saved: CityState; bar: number } | null = null;
   let partyPattern = 0;   // like the firmware, each party carries on from where the last one stopped
   const stopParty = (restore: boolean) => {
     if (!party) return;
-    clearInterval(party.timer);
-    partyPattern = (partyPattern + Math.floor(Math.max(0, party.half - 1) / PATTERN_STEPS) + 1) % PATTERN_COUNT;
+    clearTimeout(party.timer);
+    partyPattern = (partyPattern + Math.max(0, party.bar) + 1) % PATTERN_COUNT;
     if (restore) Object.assign(s, { ...party.saved, LDR: s.LDR, DK: s.DK, THR: s.THR, LON: s.LON });
     party = null;
     s.MU = false;
   };
   const startParty = () => {
-    if (!songSixteenths) return;
+    if (!song.length) return;
     stopParty(true);
     stopShow(true);
-    const saved = { ...s };
-    const halfBeats = Math.ceil(songSixteenths / 2);
-    const step = () => {
-      if (closed || !party) return;
-      if (party.half >= halfBeats) { stopParty(true); h.onLine(formatStatus(s)); return; }
-      const i = (partyPattern * PATTERN_STEPS + party.half) % SHOW_STEPS.length;
-      Object.assign(s, showLights(SHOW_STEPS[i] ?? 0), { WT: true, AUTO: false, MU: true });
-      party.half++;
-      h.onLine(formatStatus(s));
+    const p = { timer: setTimeout(() => {}, 0), saved: { ...s }, bar: -1 };
+    party = p;
+    const sixteenthMs = 15000 / bpm;
+    let index = 0, six = 0, hit = 0, due = Date.now();
+    const lights = (mask: number) => { Object.assign(s, showLights(mask), { WT: true, AUTO: false, MU: true }); h.onLine(formatStatus(s)); };
+    const playNote = () => {
+      if (closed || party !== p) return;
+      if (index >= song.length) { stopParty(true); h.onLine(formatStatus(s)); return; }
+      const note = song[index]!, ms = note.sixteenths * sixteenthMs, bar = Math.floor(six / 16);
+      if (bar !== p.bar) { p.bar = bar; hit = 0; }
+      let mask = 0;
+      if (note.pitch > 0) {
+        const base = ((partyPattern + bar) % PATTERN_COUNT) * PATTERN_STEPS;
+        for (let k = 0; k < PATTERN_STEPS && !mask; k++) mask = SHOW_STEPS[base + (hit++ % PATTERN_STEPS)] ?? 0;
+      }
+      lights(mask);
+      index++; six += note.sixteenths; due += ms;
+      // the short blink at the end of the note, then the next note on a fixed timeline
+      p.timer = setTimeout(() => {
+        if (closed || party !== p) return;
+        if (mask) lights(0);
+        p.timer = setTimeout(playNote, Math.max(0, due - Date.now()));
+      }, Math.max(0, due - ms / 8 - Date.now()));
     };
-    party = { timer: setInterval(step, 30000 / bpm), saved, half: 0 };
-    step();
+    playNote();
   };
   const emit = () => setTimeout(() => { if (!closed) h.onLine(formatStatus(s)); }, 120);
   // The demo's sensor is a slow sine wave, so "automatic" uses a fixed level of 1500 here; the
@@ -276,8 +290,14 @@ export function connectDemo(h: Handlers): Transport {
     async send(cmd) {
       if (closed) throw new Error("Not connected");
       const [k = "", v = ""] = cmd.split(":");
-      if (k === "MB") { stopParty(true); bpm = Math.min(180, Math.max(60, Number(v) || 120)); songSixteenths = 0; }
-      else if (k === "MA") { for (let i = 0; i + 3 < v.length; i += 4) songSixteenths += parseInt(v.slice(i + 2, i + 4), 16) || 0; return; }
+      if (k === "MB") { stopParty(true); bpm = Math.min(180, Math.max(60, Number(v) || 120)); song = []; }
+      else if (k === "MA") {
+        for (let i = 0; i + 3 < v.length; i += 4) {
+          const sixteenths = parseInt(v.slice(i + 2, i + 4), 16) || 0;
+          if (sixteenths > 0) song.push({ pitch: parseInt(v.slice(i, i + 2), 16) || 0, sixteenths });
+        }
+        return;
+      }
       else if (k === "MP") { if (v === "1") startParty(); else stopParty(true); }
       else if (k !== "GET") stopParty(true);
       if ((k === "SCENE" && v.toLowerCase() === "show") || k === "SHOW") {
