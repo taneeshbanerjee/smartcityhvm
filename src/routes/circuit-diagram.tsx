@@ -6,6 +6,8 @@ const PAGES: readonly PdfPage[] = [
   { n: 2, title: "Motors on the L298N motor driver", detail: "OUT1–OUT4" },
   { n: 3, title: "Motor driver inputs", detail: "IN1 D27, IN2 D26, IN3 D25, IN4 D33" },
   { n: 4, title: "Light sensor (LDR)", detail: "3V3 → LDR → D32, and D32 → resistor → GND" },
+  { n: 5, title: "Party buzzer", detail: "D23 → resistor → buzzer +, buzzer − → GND" },
+  { n: 6, title: "Voice assistant parts (planned)", detail: "INMP441 I2S microphone, MAX98357A I2S amplifier with 2 W 4 Ω speaker, 0.96 inch 128×64 OLED and a 5 mm LED. Reference diagram by SKR Electronics Lab; not wired on the model yet." },
 ];
 
 export const Route = createFileRoute("/circuit-diagram")({
@@ -32,7 +34,7 @@ function CircuitDiagramPage() {
       pages={PAGES}
       width={2000}
       height={1125}
-      intro="These 4 pages are the exact pin map of the ESP32 code on this website."
+      intro="Pages 1 to 5 are the exact pin map of the ESP32 code on this website. Page 6 shows the planned voice assistant parts."
     />
   );
 }

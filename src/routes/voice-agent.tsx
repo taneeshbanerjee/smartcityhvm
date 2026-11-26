@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, Mic2 } from "lucide-react";
+import { ArrowLeft, Cpu, ExternalLink, Mic2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const voiceAgentUrl = "https://elevenlabs.io/app/talk-to?agent_id=agent_6501m6s6yy59fht8mfqcfk30wycb";
@@ -63,6 +63,12 @@ function VoiceAgentPage() {
         <h1 className="min-w-0 flex-1 font-display font-semibold">Smart City Voice Agent</h1>
         <Button variant="outline" size="sm" asChild><a href={voiceAgentUrl} target="_blank" rel="noreferrer"><ExternalLink /> Open separately</a></Button>
       </header>
+      <section className="space-y-2 border-b border-border px-4 py-3">
+        <Button asChild className="h-11 w-full rounded-xl sm:w-auto">
+          <a href="https://skrelectronicslab.com/xiaozhi-ai-pro-firmware-flasher-for-esp32/" target="_blank" rel="noopener noreferrer"><Cpu /> Flash firmware</a>
+        </Button>
+        <p className="text-sm text-muted-foreground">Opens the XiaoZhi AI firmware flasher for ESP32 by SKR Electronics Lab. Flashing it replaces the Smart City code on that ESP32.</p>
+      </section>
       <section className="space-y-2 border-b border-border px-4 py-3">
         <p className="flex items-center gap-2 text-sm font-semibold"><Mic2 size={16} />Karaoke audio</p>
         <p className="text-sm text-muted-foreground">Pair the karaoke speaker in your device’s Bluetooth settings and select it as the device audio output. The voice agent’s audio is controlled by your browser and device, not by the description player’s output selector.</p>
