@@ -17,7 +17,7 @@ const commands = [
   ["BL:1 / BL:0", "Building lights on / off"],
   ["GR:1 / GR:0", "Green status lights on / off"],
   ["RD:1 / RD:0", "Red beacons on / off"],
-  ["WT:1 / WT:0", "Wind turbines on / off (drives both motor outputs of the L298N together)."],
+  ["WT:1 / WT:0", "Wind turbine on / off: the one motor on L298N OUT1/OUT2 turns slowly at 10% speed (a 0.3 s full-power start, then 10%)."],
   [
     "AUTO:1 / AUTO:0",
     "Enable / disable sensor-controlled street and building lights (on when the ESP32 starts). AUTO:1 also re-learns the room's light, so send it with the sensor uncovered. SL or BL by hand turns Auto off.",

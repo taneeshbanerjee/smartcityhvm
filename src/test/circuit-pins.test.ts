@@ -27,6 +27,15 @@ describe("ESP32 pins match the circuit diagram (pages 1-4)", () => {
     expect(new Set(used).size).toBe(used.length);
   });
 
+  it("runs one wind turbine motor slowly: 10% PWM on IN1, IN2 low, channel 2 held off", () => {
+    const ino = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"), "utf8");
+    expect(ino).toContain("const uint8_t MOTOR_SPEED_PERCENT = 10;");
+    expect(ino).toMatch(/ledcAttach\(PIN_M1_A, MOTOR_PWM_HZ, MOTOR_PWM_BITS\)/);
+    expect(ino).toMatch(/ledcAttachPin\(PIN_M1_A, 0\)/);
+    expect(ino).not.toMatch(/digitalWrite\(PIN_M2_A, isOn/);
+    for (const pin of ["PIN_M1_B", "PIN_M2_A", "PIN_M2_B"]) expect(ino).toContain(`digitalWrite(${pin}, LOW);`);
+  });
+
   it("has no buzzer: no buzzer pin and no tone output", () => {
     const ino = readFileSync(resolve(process.cwd(), "public/esp32-code/HVM_SmartCity_ESP32.ino"), "utf8");
     expect(ino).not.toMatch(/BUZ|\btone\s*\(|noTone|GPIO23|D23/i);

@@ -8,7 +8,7 @@
   COMMANDS (text, each ends with a new line):
     SL:1/0  street lights (white LEDs)      BL:1/0  building lights (yellow LEDs)
     GR:1/0  green LEDs                      RD:1/0  red beacons
-    WT:1/0  wind turbines (both motor outputs of the L298N together)
+    WT:1/0  wind turbine motor (one motor on L298N OUT1/OUT2), slow: 10% speed
     AUTO:1/0  street + building lights follow the LDR (Auto is ON when the ESP32 starts;
               switching SL or BL by hand turns Auto off, AUTO:1 turns it back on).
               AUTO:1 also re-learns the room's light level, so send it with the LDR uncovered.
@@ -67,13 +67,24 @@ const uint8_t PIN_SL = 13;    // street lights   (white LED)
 const uint8_t PIN_BL = 12;    // building lights (yellow LED)
 const uint8_t PIN_GR = 14;    // green LED
 const uint8_t PIN_RD = 15;    // red LED
-// The model has wind turbines only (no water turbine). The WT command drives BOTH motor channels
-// of the L298N, so the fans spin whichever output (OUT1/OUT2 or OUT3/OUT4) they are wired to.
-const uint8_t PIN_M1_A = 27;  // motor driver IN1  -> motor channel 1 (OUT1/OUT2)
-const uint8_t PIN_M1_B = 26;  // motor driver IN2
-const uint8_t PIN_M2_A = 25;  // motor driver IN3  -> motor channel 2 (OUT3/OUT4)
-const uint8_t PIN_M2_B = 33;  // motor driver IN4
+// The L298N motor driver runs the ONE wind turbine motor: the ESP32's pins can't power a motor,
+// so the L298N switches the motor's own supply. Connect the motor to OUT1/OUT2. The ESP32 sets the
+// speed with PWM on IN1 (keep the ENA jumper on the L298N). Channel 2 (IN3/IN4, OUT3/OUT4) is not
+// used and is held off.
+const uint8_t PIN_M1_A = 27;  // motor driver IN1  -> the motor (OUT1/OUT2), speed by PWM
+const uint8_t PIN_M1_B = 26;  // motor driver IN2  (LOW: one direction)
+const uint8_t PIN_M2_A = 25;  // motor driver IN3  -> not used, held LOW (OUT3/OUT4 off)
+const uint8_t PIN_M2_B = 33;  // motor driver IN4  -> not used, held LOW
 const uint8_t PIN_LDR  = 32;  // LDR junction: 3V3 -> LDR -> GPIO32 -> resistor -> GND
+
+// ---------- Wind turbine motor speed ----------
+const uint8_t MOTOR_SPEED_PERCENT = 10;  // 0-100. 10%, so the turbine turns slowly.
+                                         // If the motor only hums and doesn't turn, raise this.
+const uint16_t MOTOR_KICK_MS = 300;      // full power for 0.3 s to get it turning, then slow (0 = off)
+const uint32_t MOTOR_PWM_HZ = 100;       // a low PWM frequency gives a slow motor more push
+const uint8_t MOTOR_PWM_BITS = 10;       // duty 0..1023
+const uint32_t MOTOR_FULL_DUTY = (1UL << MOTOR_PWM_BITS) - 1;
+const uint32_t MOTOR_SLOW_DUTY = MOTOR_FULL_DUTY * MOTOR_SPEED_PERCENT / 100;   // 102 of 1023
 
 // ---------- State ----------
 enum : uint8_t { B_SL = 1, B_BL = 2, B_GR = 4, B_RD = 8, B_WT = 16 };
@@ -1231,14 +1242,54 @@ void qPush(const String& s) {
 bool isOn(uint8_t bit) { return (state & bit) != 0; }
 void setBit(uint8_t bit, bool v) { if (v) state |= bit; else state &= (uint8_t)~bit; }
 
+bool motorRunning = false, motorKicking = false;
+uint32_t motorKickUntil = 0;
+
+void motorDuty(uint32_t duty) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(PIN_M1_A, duty);
+#else
+  ledcWrite(0, duty);   // LEDC channel 0
+#endif
+}
+
+void setupMotor() {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcAttach(PIN_M1_A, MOTOR_PWM_HZ, MOTOR_PWM_BITS);
+#else
+  ledcSetup(0, MOTOR_PWM_HZ, MOTOR_PWM_BITS);
+  ledcAttachPin(PIN_M1_A, 0);
+#endif
+  motorDuty(0);
+}
+
+// Wind turbine on: a short full-power kick to start it, then MOTOR_SPEED_PERCENT. Off: stop.
+void updateMotor(uint32_t now) {
+  bool on = isOn(B_WT);
+  if (on && !motorRunning) {
+    motorRunning = true;
+    motorKicking = MOTOR_KICK_MS > 0;
+    motorKickUntil = now + MOTOR_KICK_MS;
+    motorDuty(motorKicking ? MOTOR_FULL_DUTY : MOTOR_SLOW_DUTY);
+  } else if (!on && motorRunning) {
+    motorRunning = motorKicking = false;
+    motorDuty(0);
+  } else if (motorKicking && (int32_t)(now - motorKickUntil) >= 0) {
+    motorKicking = false;
+    motorDuty(MOTOR_SLOW_DUTY);
+  }
+}
+
 void applyOutputs() {
   digitalWrite(PIN_SL, isOn(B_SL));
   digitalWrite(PIN_BL, isOn(B_BL));
   digitalWrite(PIN_GR, isOn(B_GR));
   digitalWrite(PIN_RD, isOn(B_RD));
-  // wind turbines: both motor channels together, always the same direction
-  digitalWrite(PIN_M1_A, isOn(B_WT)); digitalWrite(PIN_M1_B, LOW);
-  digitalWrite(PIN_M2_A, isOn(B_WT)); digitalWrite(PIN_M2_B, LOW);
+  // the one wind turbine motor: IN1 = speed (PWM), IN2 LOW = one direction; channel 2 stays off
+  digitalWrite(PIN_M1_B, LOW);
+  digitalWrite(PIN_M2_A, LOW);
+  digitalWrite(PIN_M2_B, LOW);
+  updateMotor(millis());
 }
 
 int readLdr() {
@@ -1479,6 +1530,7 @@ void setup() {
 
   const uint8_t outs[] = { PIN_SL, PIN_BL, PIN_GR, PIN_RD, PIN_M1_A, PIN_M1_B, PIN_M2_A, PIN_M2_B };
   for (uint8_t p : outs) { pinMode(p, OUTPUT); digitalWrite(p, LOW); }
+  setupMotor();
   setupVariations();
   firstVariation(showVar);
   firstVariation(partyVar);
@@ -1560,6 +1612,9 @@ void loop() {
     statusDue = false;
     notifyLine(statusLine());
   }
+
+  // 4b) end the motor's start-up kick on time
+  updateMotor(now);
 
   // 5) keep advertising after a disconnect so the app can reconnect
   if (!connected && wasConnected) {

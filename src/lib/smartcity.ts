@@ -9,7 +9,7 @@ export const SWITCH_KEYS: SwitchKey[] = ["SL", "BL", "GR", "RD", "WT"];
 
 export interface CityState {
   SL: boolean; BL: boolean; GR: boolean; RD: boolean;
-  /** Wind turbines: the ESP32 drives both motor outputs together. */
+  /** Wind turbine: the ESP32 runs the one motor (L298N OUT1/OUT2) slowly, at 10% speed. */
   WT: boolean; AUTO: boolean;
   /** Party running: the phone plays the song and the ESP32 flashes the lights to its beat. */
   MU: boolean;
